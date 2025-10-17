@@ -1,0 +1,14 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "tsconfig.json",
+  "entryPoints": [
+    "src/index.ts",
+    "src/config.ts",
+    "src/routes/upload.ts",
+    "src/services/robotClient.ts",
+    "src/services/urGenerator.ts"
+  ],
+  "out": "../docs/backend",
+  "name": "UR Tuft Engine – Backend API",
+  "cleanOutputDir": true
+}

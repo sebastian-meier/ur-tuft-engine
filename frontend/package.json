@@ -1,0 +1,25 @@
+{
+  "name": "ur-tuft-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "echo \"Linting not configured\"",
+    "preview": "vite preview",
+    "docs": "typedoc --options typedoc.json"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@rollup/rollup-darwin-arm64": "^4.52.3",
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.2",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.11"
+  }
+}

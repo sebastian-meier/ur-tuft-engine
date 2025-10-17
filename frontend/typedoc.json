@@ -1,0 +1,11 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "tsconfig": "tsconfig.app.json",
+  "entryPoints": [
+    "src/main.tsx",
+    "src/App.tsx"
+  ],
+  "out": "../docs/frontend",
+  "name": "UR Tuft Engine – Frontend",
+  "cleanOutputDir": true
+}
