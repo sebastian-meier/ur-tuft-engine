@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { generateURProgram } from '../src/services/urGenerator';
+import { generateURProgram, generatePreflightProgram } from '../src/services/urGenerator';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../../tests/test-1.jpg');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/output');
 const OUTPUT_PATH = path.join(OUTPUT_DIR, 'test-1.urscript');
 const EXPECTED_METADATA = {
-  estimatedCycleTimeSeconds: 2513,
+  estimatedCycleTimeSeconds: 2523,
   resolution: '720x480',
   imageWidth: 720,
   imageHeight: 480,
@@ -38,4 +38,17 @@ test('generateURProgram emits expected metadata and program for test fixture', a
 
   const stats = await fs.stat(OUTPUT_PATH);
   assert.ok(stats.size > 0, 'Generated URScript output must not be empty');
+});
+
+test('generatePreflightProgram creates a five-waypoint routine with metadata', () => {
+  const { program, metadata } = generatePreflightProgram({
+    workpieceWidthMm: 500,
+    workpieceHeightMm: 500,
+  });
+
+  assert.ok(program.includes('tuft_preflight_program'), 'Program should define tuft_preflight_program');
+  assert.strictEqual(metadata.waypoints.length, 5, 'Preflight should include four corners and a center waypoint');
+  assert.ok(metadata.travelDistanceMm > 0, 'Preflight travel distance should be greater than zero');
+  assert.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
+  assert.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
 });

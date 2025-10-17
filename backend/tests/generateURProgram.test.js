@@ -12,7 +12,7 @@ const FIXTURE_PATH = node_path_1.default.resolve(__dirname, '../../tests/test-1.
 const OUTPUT_DIR = node_path_1.default.resolve(__dirname, '../../tests/output');
 const OUTPUT_PATH = node_path_1.default.join(OUTPUT_DIR, 'test-1.urscript');
 const EXPECTED_METADATA = {
-    estimatedCycleTimeSeconds: 2513,
+    estimatedCycleTimeSeconds: 2523,
     resolution: '720x480',
     imageWidth: 720,
     imageHeight: 480,
@@ -32,6 +32,17 @@ const EXPECTED_METADATA = {
     strict_1.default.strictEqual(result.metadata.activePixels, EXPECTED_METADATA.activePixels);
     strict_1.default.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
     const stats = await node_fs_1.promises.stat(OUTPUT_PATH);
-    strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty');
+strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty');
+});
+(0, node_test_1.default)('generatePreflightProgram creates a five-waypoint routine with metadata', () => {
+    const { program, metadata } = (0, urGenerator_1.generatePreflightProgram)({
+        workpieceWidthMm: 500,
+        workpieceHeightMm: 500,
+    });
+    strict_1.default.ok(program.includes('tuft_preflight_program'), 'Program should define tuft_preflight_program');
+    strict_1.default.strictEqual(metadata.waypoints.length, 5, 'Preflight should include four corners and a center waypoint');
+    strict_1.default.ok(metadata.travelDistanceMm > 0, 'Preflight travel distance should be greater than zero');
+    strict_1.default.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
+    strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
 });
 //# sourceMappingURL=generateURProgram.test.js.map

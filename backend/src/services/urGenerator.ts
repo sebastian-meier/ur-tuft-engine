@@ -26,6 +26,8 @@ export interface URGenerationOptions {
   blackPixelThreshold?: number;
   /** Target contact force in Newtons that determines when the tool has reached the surface. */
   contactForceThresholdN?: number;
+  /** URScript variable name referencing the coordinate frame applied to generated poses. */
+  coordinateFrameVariable?: string;
 }
 
 /** Structured metadata returned alongside the generated UR program. */
@@ -51,6 +53,73 @@ export interface URGenerationResult {
   };
 }
 
+export interface PreflightGenerationResult {
+  /** fully formatted URScript program executing the preflight path. */
+  program: string;
+  /** Additional details describing the generated routine. */
+  metadata: {
+    /** Coordinate frame variable applied to generated poses. */
+    coordinateFrame: string;
+    /** Total horizontal travel distance across the preflight path, in millimetres. */
+    travelDistanceMm: number;
+    /** Approximate duration of the routine, in seconds. */
+    estimatedCycleTimeSeconds: number;
+    /** Per-corner dwell duration, in seconds. */
+    cornerDwellSeconds: number;
+    /** Ordered waypoint list traversed by the preflight path. */
+    waypoints: Array<{ xMm: number; yMm: number; dwellSeconds: number }>;
+  };
+}
+
+export function generatePreflightProgram(options: URGenerationOptions = {}): PreflightGenerationResult {
+  const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
+  const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
+    formatPose(coordinateFrameVariable, xMm, yMm, zMeters);
+
+  const moveAcceleration = 1.2;
+  const safeZ = settings.safeHeightMm / 1000;
+  const travelSpeed = settings.travelSpeedMmPerSec / 1000;
+
+  const preflightWaypoints = buildPreflightWaypoints(settings.workpieceWidthMm, settings.workpieceHeightMm);
+  const travelDistanceMm = calculatePreflightTravelDistance(preflightWaypoints);
+  const totalDwellSeconds =
+    preflightWaypoints.filter((waypoint) => waypoint.dwell).length * PREFLIGHT_DWELL_SECONDS;
+
+  const programLines: string[] = [];
+  programLines.push(`def tuft_preflight_program():`);
+  programLines.push(`    textmsg("Starting tuft preflight routine")`);
+  programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
+  programLines.push(
+    ...createPreflightMoveLines({
+      waypoints: preflightWaypoints,
+      indent: '    ',
+      formatPoseForFrame,
+      moveAcceleration,
+      travelSpeed,
+      safeZ,
+    }),
+  );
+  programLines.push(`    textmsg("Preflight routine complete")`);
+  programLines.push(`end`);
+  programLines.push(`tuft_preflight_program()`);
+
+  return {
+    program: programLines.join('\n'),
+    metadata: {
+      coordinateFrame: coordinateFrameVariable,
+      travelDistanceMm,
+      estimatedCycleTimeSeconds: Math.round(travelDistanceMm / settings.travelSpeedMmPerSec + totalDwellSeconds),
+      cornerDwellSeconds: PREFLIGHT_DWELL_SECONDS,
+      waypoints: preflightWaypoints.map((waypoint) => ({
+        xMm: waypoint.x,
+        yMm: waypoint.y,
+        dwellSeconds: waypoint.dwell ? PREFLIGHT_DWELL_SECONDS : 0,
+      })),
+    },
+  };
+}
+
 interface ColumnSegment {
   start: number;
   end: number;
@@ -71,6 +140,7 @@ const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   tuftSpeedMmPerSec: 60,
   blackPixelThreshold: 64,
   contactForceThresholdN: 15,
+  coordinateFrameVariable: 'tuftCoord',
 };
 
 const RAD_ORIENTATION = {
@@ -79,14 +149,25 @@ const RAD_ORIENTATION = {
   rz: 0,
 };
 
-/**
- * Formats a cartesian pose using the configured orientation for use in URScript `movel` commands.
- */
-const formatPose = (xMm: number, yMm: number, zMeters: number): string => {
+const PREFLIGHT_DWELL_SECONDS = 0.5;
+
+interface PreflightWaypoint {
+  x: number;
+  y: number;
+  dwell: boolean;
+}
+
+const COORDINATE_VARIABLE_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const resolveCoordinateFrameVariable = (variable: string): string =>
+  COORDINATE_VARIABLE_PATTERN.test(variable) ? variable : DEFAULT_OPTIONS.coordinateFrameVariable;
+
+/** Formats a cartesian pose relative to the provided coordinate frame via URScript `pose_trans`. */
+const formatPose = (frameVariable: string, xMm: number, yMm: number, zMeters: number): string => {
   const x = (xMm / 1000).toFixed(4);
   const y = (yMm / 1000).toFixed(4);
   const z = zMeters.toFixed(4);
-  return `p[${x}, ${y}, ${z}, ${RAD_ORIENTATION.rx.toFixed(4)}, ${RAD_ORIENTATION.ry.toFixed(4)}, ${RAD_ORIENTATION.rz.toFixed(4)}]`;
+  return `pose_trans(${frameVariable}, p[${x}, ${y}, ${z}, ${RAD_ORIENTATION.rx.toFixed(4)}, ${RAD_ORIENTATION.ry.toFixed(4)}, ${RAD_ORIENTATION.rz.toFixed(4)}])`;
 };
 
 /**
@@ -96,6 +177,56 @@ const distance2D = (x1: number, y1: number, x2: number, y2: number): number => {
   const dx = x2 - x1;
   const dy = y2 - y1;
   return Math.hypot(dx, dy);
+};
+
+const buildPreflightWaypoints = (workpieceWidthMm: number, workpieceHeightMm: number): PreflightWaypoint[] => [
+  { x: 0, y: 0, dwell: true },
+  { x: workpieceWidthMm, y: 0, dwell: true },
+  { x: workpieceWidthMm, y: workpieceHeightMm, dwell: true },
+  { x: 0, y: workpieceHeightMm, dwell: true },
+  { x: workpieceWidthMm / 2, y: workpieceHeightMm / 2, dwell: false },
+];
+
+const calculatePreflightTravelDistance = (waypoints: PreflightWaypoint[]): number => {
+  let total = 0;
+  for (let index = 1; index < waypoints.length; index += 1) {
+    total += distance2D(
+      waypoints[index - 1].x,
+      waypoints[index - 1].y,
+      waypoints[index].x,
+      waypoints[index].y,
+    );
+  }
+  return total;
+};
+
+const createPreflightMoveLines = ({
+  waypoints,
+  indent,
+  formatPoseForFrame,
+  moveAcceleration,
+  travelSpeed,
+  safeZ,
+}: {
+  waypoints: PreflightWaypoint[];
+  indent: string;
+  formatPoseForFrame: (xMm: number, yMm: number, zMeters: number) => string;
+  moveAcceleration: number;
+  travelSpeed: number;
+  safeZ: number;
+}): string[] => {
+  const lines: string[] = [];
+
+  for (const waypoint of waypoints) {
+    lines.push(
+      `${indent}movel(${formatPoseForFrame(waypoint.x, waypoint.y, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+    );
+    if (waypoint.dwell) {
+      lines.push(`${indent}sleep(${PREFLIGHT_DWELL_SECONDS.toFixed(1)})`);
+    }
+  }
+
+  return lines;
 };
 
 /**
@@ -120,6 +251,9 @@ export async function generateURProgram(
   options: URGenerationOptions = {},
 ): Promise<URGenerationResult> {
   const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
+  const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
+    formatPose(coordinateFrameVariable, xMm, yMm, zMeters);
 
   if (settings.tuftHeightMm >= settings.safeHeightMm) {
     throw new Error('Tuft height must be smaller than the safe height to allow a retract move.');
@@ -186,6 +320,7 @@ export async function generateURProgram(
   const programLines: string[] = [];
   programLines.push(`def tuft_program():`);
   programLines.push(`    textmsg("Starting tufting job ${originalName}")`);
+  programLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(`    global travel_speed = ${travelSpeed.toFixed(4)}`);
   programLines.push(`    global tuft_speed = ${tuftSpeed.toFixed(4)}`);
@@ -211,14 +346,29 @@ export async function generateURProgram(
 
   const moveAcceleration = 1.2;
   const approachAcceleration = 0.8;
+  const preflightWaypoints = buildPreflightWaypoints(settings.workpieceWidthMm, settings.workpieceHeightMm);
+  const preflightTravelDistanceMm = calculatePreflightTravelDistance(preflightWaypoints);
 
-  let lastSafeX: number | null = null;
-  let lastSafeY: number | null = null;
+  programLines.push(`    textmsg("Initiating preflight routine")`);
+  programLines.push(
+    ...createPreflightMoveLines({
+      waypoints: preflightWaypoints,
+      indent: '    ',
+      formatPoseForFrame,
+      moveAcceleration,
+      travelSpeed,
+      safeZ,
+    }),
+  );
+  programLines.push(`    textmsg("Preflight routine complete")`);
+
+  let lastSafeX: number | null = preflightWaypoints[preflightWaypoints.length - 1].x;
+  let lastSafeY: number | null = preflightWaypoints[preflightWaypoints.length - 1].y;
   let lastSurfaceX: number | null = null;
   let lastSurfaceY: number | null = null;
   let toolActive = false;
 
-  let travelDistanceMm = 0;
+  let travelDistanceMm = preflightTravelDistanceMm;
   let tuftDistanceMm = 0;
   let verticalDistanceMm = 0;
 
@@ -229,7 +379,7 @@ export async function generateURProgram(
       travelDistanceMm += travel;
     }
     programLines.push(
-      `    movel(${formatPose(xMm, yMm, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+      `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSafeX = xMm;
     lastSafeY = yMm;
@@ -250,7 +400,7 @@ export async function generateURProgram(
     programLines.push('    end');
     programLines.push(`    if contact_pose[2] > ${surfaceZ.toFixed(4)}:`);
     programLines.push(
-      `        movel(${formatPose(xMm, yMm, surfaceZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+      `        movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     programLines.push('    end');
     lastSurfaceX = xMm;
@@ -263,7 +413,7 @@ export async function generateURProgram(
       tuftDistanceMm += tuftTravel;
     }
     programLines.push(
-      `    movel(${formatPose(xMm, yMm, surfaceZ)}, a=${moveAcceleration.toFixed(1)}, v=${tuftSpeed.toFixed(4)})`,
+      `    movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${moveAcceleration.toFixed(1)}, v=${tuftSpeed.toFixed(4)})`,
     );
     lastSurfaceX = xMm;
     lastSurfaceY = yMm;
@@ -272,7 +422,7 @@ export async function generateURProgram(
   const retractToSafe = (xMm: number, yMm: number) => {
     verticalDistanceMm += settings.tuftHeightMm;
     programLines.push(
-      `    movel(${formatPose(xMm, yMm, safeZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+      `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSurfaceX = null;
     lastSurfaceY = null;
@@ -321,7 +471,7 @@ export async function generateURProgram(
     const homeY = 0;
     travelDistanceMm += distance2D(lastSafeX, lastSafeY, homeX, homeY);
     programLines.push(
-      `    movel(${formatPose(homeX, homeY, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+      `    movel(${formatPoseForFrame(homeX, homeY, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSafeX = homeX;
     lastSafeY = homeY;

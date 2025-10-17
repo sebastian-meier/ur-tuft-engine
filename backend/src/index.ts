@@ -9,6 +9,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import uploadRouter from './routes/upload';
+import preflightRouter from './routes/preflight';
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/images', uploadRouter);
+app.use('/api/preflight', preflightRouter);
 
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.

@@ -27,6 +27,8 @@ const translations: Record<Language, {
     submit: string;
     submitUploading: string;
     reset: string;
+    preflight: string;
+    preflightRunning: string;
   };
   errors: {
     noFile: string;
@@ -49,6 +51,22 @@ const translations: Record<Language, {
     robotDelivery: string;
   };
   robotDeliveryStatus: Record<RobotStatus, string>;
+  preflight: {
+    heading: string;
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+    metadataLabels: {
+      jobId: string;
+      estimatedCycleTime: string;
+      travelDistance: string;
+      coordinateFrame: string;
+      cornerDwell: string;
+      waypoints: string;
+    };
+  };
   languageOptions: Record<Language, string>;
 }> = {
   en: {
@@ -64,6 +82,8 @@ const translations: Record<Language, {
       submit: 'Generate Program',
       submitUploading: 'Uploading…',
       reset: 'Reset',
+      preflight: 'Run Preflight',
+      preflightRunning: 'Running preflight…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -90,6 +110,22 @@ const translations: Record<Language, {
       failed: 'failed',
       skipped: 'skipped',
     },
+    preflight: {
+      heading: 'Preflight Routine',
+      successDelivered: 'Preflight sequence delivered to the robot.',
+      infoSkipped: 'Preflight sequence generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Preflight sequence generated, but sending to the robot failed:',
+      warningFailedFallback: 'Preflight sequence generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while running the preflight routine.',
+      metadataLabels: {
+        jobId: 'Job ID',
+        estimatedCycleTime: 'Estimated Duration',
+        travelDistance: 'Travel Distance',
+        coordinateFrame: 'Coordinate Frame',
+        cornerDwell: 'Corner Dwell',
+        waypoints: 'Waypoints',
+      },
+    },
     languageOptions: {
       en: 'English',
       de: 'Deutsch',
@@ -108,6 +144,8 @@ const translations: Record<Language, {
       submit: 'Programm erzeugen',
       submitUploading: 'Wird hochgeladen…',
       reset: 'Zuruecksetzen',
+      preflight: 'Preflight starten',
+      preflightRunning: 'Preflight läuft…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -133,6 +171,22 @@ const translations: Record<Language, {
       delivered: 'erfolgreich',
       failed: 'fehlgeschlagen',
       skipped: 'uebersprungen',
+    },
+    preflight: {
+      heading: 'Preflight-Routine',
+      successDelivered: 'Preflight-Sequenz wurde an den Roboter gesendet.',
+      infoSkipped: 'Preflight-Sequenz generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Preflight-Sequenz generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Preflight-Sequenz generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Ausführen der Preflight-Routine.',
+      metadataLabels: {
+        jobId: 'Job-ID',
+        estimatedCycleTime: 'Geschätzte Dauer',
+        travelDistance: 'Verfahrweg',
+        coordinateFrame: 'Koordinatensystem',
+        cornerDwell: 'Verweilzeit an den Ecken',
+        waypoints: 'Wegpunkte',
+      },
     },
     languageOptions: {
       en: 'English',
@@ -165,6 +219,25 @@ interface UploadResponse {
   };
 }
 
+interface PreflightResponse {
+  jobId: string;
+  metadata: {
+    estimatedCycleTimeSeconds: number;
+    travelDistanceMm: number;
+    coordinateFrame: string;
+    cornerDwellSeconds: number;
+    waypoints: Array<{ xMm: number; yMm: number; dwellSeconds: number }>;
+  };
+  program: string;
+  robotDelivery: {
+    attempted: boolean;
+    status: RobotStatus;
+    error?: string;
+  };
+}
+
+type PreflightState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 /**
  * Renders the single-page upload workflow. Image previews are generated via an object URL that is
  * revoked once the component no longer needs it to avoid leaking resources.
@@ -176,6 +249,9 @@ function App() {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [errorState, setErrorState] = useState<ErrorState>({ key: 'none' });
   const [result, setResult] = useState<UploadResponse | null>(null);
+  const [preflightState, setPreflightState] = useState<PreflightState>('idle');
+  const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -207,6 +283,9 @@ function App() {
     setUploadState('idle');
     setErrorState({ key: 'none' });
     setResult(null);
+    setPreflightState('idle');
+    setPreflightResult(null);
+    setPreflightError(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -260,6 +339,35 @@ function App() {
         setErrorState({ key: 'unexpected' });
       }
       setUploadState('error');
+    }
+  };
+
+  const handlePreflight = async () => {
+    setPreflightState('running');
+    setPreflightError(null);
+    setPreflightResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/preflight`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as PreflightResponse & { error?: string };
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.error ?? 'Preflight failed.';
+        throw new Error(message);
+      }
+
+      setPreflightResult(payload);
+      setPreflightState(response.status === 202 ? 'warning' : 'success');
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setPreflightError(error.message);
+      } else {
+        setPreflightError(t.preflight.errorUnexpected);
+      }
+      setPreflightState('error');
     }
   };
 
@@ -324,6 +432,14 @@ function App() {
             <button type="button" className="secondary" onClick={reset} disabled={uploadState === 'uploading'}>
               {t.actions.reset}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handlePreflight}
+              disabled={uploadState === 'uploading' || preflightState === 'running'}
+            >
+              {preflightState === 'running' ? t.actions.preflightRunning : t.actions.preflight}
+            </button>
           </div>
         </form>
 
@@ -340,6 +456,20 @@ function App() {
         )}
         {uploadState === 'success' && result?.robotDelivery.status === 'skipped' && (
           <p className="message info">{t.messages.infoSkipped}</p>
+        )}
+        {preflightState === 'error' && preflightError && <p className="message error">{preflightError}</p>}
+        {preflightState === 'warning' && preflightResult?.robotDelivery.status === 'failed' && (
+          <p className="message warning">
+            {preflightResult.robotDelivery.error
+              ? `${t.preflight.warningFailedPrefix} ${preflightResult.robotDelivery.error}`
+              : t.preflight.warningFailedFallback}
+          </p>
+        )}
+        {preflightState === 'success' && preflightResult?.robotDelivery.status === 'delivered' && (
+          <p className="message success">{t.preflight.successDelivered}</p>
+        )}
+        {preflightState === 'success' && preflightResult?.robotDelivery.status === 'skipped' && (
+          <p className="message info">{t.preflight.infoSkipped}</p>
         )}
       </section>
 
@@ -371,6 +501,46 @@ function App() {
             </li>
           </ul>
           <textarea className="program-output" value={result.program} readOnly rows={16} />
+        </section>
+      )}
+      {preflightResult && (
+        <section className="panel">
+          <h2>{t.preflight.heading}</h2>
+          <ul className="metadata">
+            <li>
+              <strong>{t.preflight.metadataLabels.jobId}:</strong> {preflightResult.jobId}
+            </li>
+            <li>
+              <strong>{t.preflight.metadataLabels.estimatedCycleTime}:</strong>{' '}
+              {numberFormatter.format(preflightResult.metadata.estimatedCycleTimeSeconds)} seconds
+            </li>
+            <li>
+              <strong>{t.preflight.metadataLabels.travelDistance}:</strong>{' '}
+              {numberFormatter.format(preflightResult.metadata.travelDistanceMm)} mm
+            </li>
+            <li>
+              <strong>{t.preflight.metadataLabels.coordinateFrame}:</strong>{' '}
+              {preflightResult.metadata.coordinateFrame}
+            </li>
+            <li>
+              <strong>{t.preflight.metadataLabels.cornerDwell}:</strong>{' '}
+              {numberFormatter.format(preflightResult.metadata.cornerDwellSeconds)} s
+            </li>
+            <li>
+              <strong>{t.preflight.metadataLabels.waypoints}:</strong>{' '}
+              {preflightResult.metadata.waypoints
+                .map((waypoint) => {
+                  const base = `(${numberFormatter.format(waypoint.xMm)} mm, ${numberFormatter.format(
+                    waypoint.yMm,
+                  )} mm)`;
+                  return waypoint.dwellSeconds > 0
+                    ? `${base} · ${numberFormatter.format(waypoint.dwellSeconds)} s dwell`
+                    : base;
+                })
+                .join(' → ')}
+            </li>
+          </ul>
+          <textarea className="program-output" value={preflightResult.program} readOnly rows={12} />
         </section>
       )}
     </main>
