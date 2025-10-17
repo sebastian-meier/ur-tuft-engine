@@ -1,45 +1,38 @@
 # UR Tuft Engine – Backend
 
-FastAPI service that receives artwork uploads, generates Universal Robots (UR) programs, and can stream the resulting URScript directly to a controller using the official `ur-rtde` Python SDK.
+Express + TypeScript API for receiving artwork uploads, generating Universal Robots (UR) programs, and optionally streaming them to a robot.
 
-## Setup
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env
-```
-
-The optional `.[dev]` extras install pytest for local regression tests. Environment variables mirror the historical Node backend, so existing deployment configs can be re-used.
-
-## Running the server
+## Scripts
 
 ```bash
-uvicorn app.api:app --host 0.0.0.0 --port 4000
+npm run dev   # start in watch mode with ts-node-dev
+npm run build # compile TypeScript to dist/
+npm run start # run the compiled JavaScript
+npm run docs  # build TypeDoc API documentation into ../docs/backend
+npm run test  # run fixture-based tests and snapshot the generated URScript
 ```
-
-The port is overridable via the `PORT` environment variable. When `ROBOT_HOST` is defined, the backend will attempt to deliver generated programs through the official `ur-rtde` client.
 
 ## Environment Variables
 
-- `PORT` (`4000`) – Port exposed by uvicorn.
-- `CORS_ORIGIN` – Comma-separated list of allowed origins; omit to allow all.
-- `ROBOT_HOST` – UR controller IP/hostname. Leave unset to disable delivery.
-- `ROBOT_PORT` (`30002`) – Controller TCP port used for program streaming.
-- `ROBOT_TOOL_OUTPUT` (`0`) – Digital output index controlling the tufting end-effector.
-- `ROBOT_TRAVEL_SPEED_MM_S` (`200`) – XY travel speed when not tufting.
-- `ROBOT_TUFT_SPEED_MM_S` (`60`) – XY speed while the tool is engaged.
-- `ROBOT_CONTACT_FORCE_THRESHOLD_N` (`15`) – Force threshold in Newtons signalling surface contact.
-- `WORKPIECE_WIDTH_MM` / `WORKPIECE_HEIGHT_MM` (`500`) – Physical dimensions represented by the uploaded artwork.
-- `SAFE_HEIGHT_MM` (`150`) – Clearance height above the surface.
-- `TUFT_HEIGHT_MM` (`5`) – Plunge depth from the safe height.
-- `BLACK_PIXEL_THRESHOLD` (`64`) – Greyscale threshold (0–255) that classifies pixels as tuftable.
+Copy `.env.example` to `.env` and adjust as needed:
+
+- `PORT` (default `4000`) – Port to expose the API.
+- `CORS_ORIGIN` – Comma-separated list of allowed origins for the frontend UI.
+- `ROBOT_HOST` – Set to the UR controller IP/hostname to enable auto-delivery.
+- `ROBOT_PORT` (default `30002`) – Controller TCP port used for program streaming.
+- `ROBOT_TOOL_OUTPUT` (default `0`) – Digital output index controlling the tufting end-effector.
+- `ROBOT_TRAVEL_SPEED_MM_S` (default `200`) – XY travel speed when not tufting.
+- `ROBOT_TUFT_SPEED_MM_S` (default `60`) – XY speed while the tool is engaged.
+- `ROBOT_CONTACT_FORCE_THRESHOLD_N` (default `15`) – Force threshold in Newtons signalling surface contact.
+- `WORKPIECE_WIDTH_MM` / `WORKPIECE_HEIGHT_MM` (default `500`) – Physical dimensions that the uploaded image spans on the work surface.
+- `SAFE_HEIGHT_MM` (default `150`) – Height, in millimetres, for clearance and travel above the surface.
+- `TUFT_HEIGHT_MM` (default `5`) – Distance to descend from safe height to contact the surface.
+- `BLACK_PIXEL_THRESHOLD` (default `64`) – Greyscale threshold (0–255) that classifies pixels as tuftable.
 
 ## API Overview
 
-- `POST /api/images` – Accepts a multipart form field named `image`. Returns the generated UR program, metadata, and delivery status (`delivered`, `skipped`, or `failed`).
-- `GET /health` – Basic readiness probe.
-- `GET /docs` – FastAPI's automatically generated OpenAPI UI.
+- `POST /api/images` – Accepts a multipart form field named `image`. Returns the generated UR program, metadata, and delivery status.
+- `GET /health` – Basic health probe for uptime checks.
+- `GET /docs` – Swagger UI generated from route annotations providing interactive API exploration.
 
-Program generation now lives in `app/ur_generator.py`. It mirrors the previous TypeScript logic, ensuring compatibility with existing URScript snapshots and operator expectations.
+Program generation is handled in `src/services/urGenerator.ts`. It samples the uploaded bitmap column-by-column, toggles the configured output pin when black pixels are encountered, and emits a ready-to-run UR script with estimated cycle time.

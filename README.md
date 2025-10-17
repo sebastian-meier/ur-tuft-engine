@@ -4,27 +4,36 @@ A full-stack workspace for converting uploaded tufting artwork into Universal Ro
 
 ## Project Layout
 
-- `backend/` – FastAPI + Python service for receiving images, generating UR scripts from pixel columns, and streaming them to a robot via the official `ur-rtde` client.
+- `backend/` – Express + TypeScript API for receiving images, generating UR scripts from pixel columns, and streaming them to a robot.
 - `frontend/` – React + Vite UI for uploading artwork and reviewing the generated UR program.
-- `docs/` – Generated TypeDoc documentation for the frontend (`npm run docs`).
+- `docs/` – Generated TypeDoc documentation for backend and frontend code (`npm run docs`).
 
 ## Prerequisites
 
-- Python 3.10+ (backend)
-- Node.js 18.x (LTS) and npm 10+ (frontend)
+- Node.js 18.x (LTS) and npm 10+
 - A Universal Robots controller reachable on the local network (optional for development)
 
 ## Getting Started
 
-### Backend
+### Quick start (root)
+
+```bash
+npm install
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+npm run dev
+```
+
+`npm run dev` launches the backend and frontend watcher processes in parallel. Adjust the `.env` files before running if you need non-default ports, workspace dimensions, or robot connection details.
+
+Swagger UI is available once the backend is running at `http://localhost:4000/docs`.
+
+### Backend only
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-cp .env.example .env
-uvicorn app.api:app --reload --host 0.0.0.0 --port 4000
+npm install
+npm run dev
 ```
 
 Key environment variables (see `backend/.env.example` for the full list):
@@ -40,14 +49,12 @@ The API exposes:
 
 - `POST /api/images` – Accepts a multipart form field named `image`. Returns the generated UR program and attempts delivery when `ROBOT_HOST` is configured.
 - `GET /health` – Lightweight readiness check.
-- `GET /docs` – FastAPI OpenAPI explorer.
 
-### Frontend
+### Frontend only
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm run dev
 ```
 
@@ -55,19 +62,19 @@ The frontend expects `VITE_API_URL` in `.env` to point at the running backend (`
 
 ## Documentation
 
-- Auto-generated TypeDoc output for the frontend lives in `docs/frontend` (`npm run docs`).
-- Interactive API reference is served via FastAPI's documentation at `/docs` while the backend is running.
+- Auto-generated TypeDoc output lives in `docs/backend` and `docs/frontend`. Rebuild with `npm run docs`.
+- Interactive API reference is served via Swagger UI at `/docs` while the backend is running.
 
 ## Tests
 
-- Backend: `cd backend && pytest`. Regression tests compare the generated URScript with the historical snapshot in `tests/output/test-1.urscript`.
-- Frontend: `cd frontend && npm run test`.
+- Run `npm run test` (or `npm run test --workspace backend`) to execute the backend fixture test.
+- The test writes the generated URScript for `tests/test-1.jpg` to `tests/output/test-1.urscript` so you can review the program that drives the robot.
 
 ## Development Notes
 
-- Toolpath generation decomposes the bitmap into vertical strokes, toggling the configured output pin whenever dark pixels are encountered. Update `backend/app/ur_generator.py` when introducing more advanced toolpath planning.
+- Toolpath generation decomposes the bitmap into vertical strokes, toggling the configured output pin whenever dark pixels are encountered. Update `backend/src/services/urGenerator.ts` when introducing more advanced toolpath planning.
 - Automatic robot delivery can be toggled by setting or omitting `ROBOT_HOST`. Delivery failures are surfaced in the frontend UI.
-- When updating dependencies, ensure both the Python and Node toolchains remain compatible with their respective runtime requirements.
+- When updating dependencies, prefer versions compatible with Node 18 or upgrade Node accordingly.
 
 ## Next Steps
 
