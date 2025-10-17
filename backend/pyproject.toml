@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ur-tuft-engine-backend"
+version = "0.1.0"
+description = "FastAPI backend for generating URScript programs and streaming them to a Universal Robot."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0,<1.0.0",
+    "uvicorn[standard]>=0.27.0,<1.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "pillow>=10.0.0,<11.0.0",
+    "ur-rtde>=1.5.6,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0,<9.0.0",
+]
+
+[project.scripts]
+ur-tuft-backend = "app.main:run"
+
+[tool.setuptools]
+packages = ["app"]
