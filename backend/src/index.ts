@@ -10,6 +10,7 @@ import swaggerUi from 'swagger-ui-express';
 import { config } from './config';
 import uploadRouter from './routes/upload';
 import preflightRouter from './routes/preflight';
+import toolTestRouter from './routes/toolTest';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/images', uploadRouter);
 app.use('/api/preflight', preflightRouter);
+app.use('/api/tool-test', toolTestRouter);
 
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.

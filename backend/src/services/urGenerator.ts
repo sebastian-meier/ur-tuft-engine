@@ -71,6 +71,21 @@ export interface PreflightGenerationResult {
   };
 }
 
+export interface ToolTestGenerationResult {
+  /** fully formatted URScript program toggling the tufting gun while jogging along Z. */
+  program: string;
+  metadata: {
+    /** Distance travelled along the Z axis during the test motion, in metres. */
+    displacementMeters: number;
+    /** Digital output index driven during the test. */
+    toolOutput: number;
+    /** Duration in seconds the tool output remains active. */
+    dwellSeconds: number;
+    /** Linear speed used for the motion, in millimetres per second. */
+    travelSpeedMmPerSec: number;
+  };
+}
+
 export function generatePreflightProgram(options: URGenerationOptions = {}): PreflightGenerationResult {
   const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
   const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
@@ -116,6 +131,45 @@ export function generatePreflightProgram(options: URGenerationOptions = {}): Pre
         yMm: waypoint.y,
         dwellSeconds: waypoint.dwell ? PREFLIGHT_DWELL_SECONDS : 0,
       })),
+    },
+  };
+}
+
+export function generateToolTestProgram(options: URGenerationOptions = {}): ToolTestGenerationResult {
+  const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const moveAcceleration = 1.2;
+  const travelSpeed = settings.travelSpeedMmPerSec / 1000;
+  const displacementMeters = 0.15;
+  const dwellSeconds = 5;
+
+  const programLines: string[] = [];
+  programLines.push(`def tuft_tool_test_program():`);
+  programLines.push(`    textmsg("Starting tufting gun test")`);
+  programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
+  programLines.push(`    local start_pose = get_actual_tcp_pose()`);
+  programLines.push(
+    `    local test_pose = pose_trans(start_pose, p[0, 0, -${displacementMeters.toFixed(4)}, 0, 0, 0])`,
+  );
+  programLines.push(
+    `    movel(test_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+  );
+  programLines.push(`    set_digital_out(${settings.toolOutput}, True)`);
+  programLines.push(`    sleep(${dwellSeconds.toFixed(1)})`);
+  programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
+  programLines.push(
+    `    movel(start_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+  );
+  programLines.push(`    textmsg("Tufting gun test finished")`);
+  programLines.push(`end`);
+  programLines.push(`tuft_tool_test_program()`);
+
+  return {
+    program: programLines.join('\n'),
+    metadata: {
+      displacementMeters,
+      toolOutput: settings.toolOutput,
+      dwellSeconds,
+      travelSpeedMmPerSec: settings.travelSpeedMmPerSec,
     },
   };
 }
@@ -346,29 +400,13 @@ export async function generateURProgram(
 
   const moveAcceleration = 1.2;
   const approachAcceleration = 0.8;
-  const preflightWaypoints = buildPreflightWaypoints(settings.workpieceWidthMm, settings.workpieceHeightMm);
-  const preflightTravelDistanceMm = calculatePreflightTravelDistance(preflightWaypoints);
-
-  programLines.push(`    textmsg("Initiating preflight routine")`);
-  programLines.push(
-    ...createPreflightMoveLines({
-      waypoints: preflightWaypoints,
-      indent: '    ',
-      formatPoseForFrame,
-      moveAcceleration,
-      travelSpeed,
-      safeZ,
-    }),
-  );
-  programLines.push(`    textmsg("Preflight routine complete")`);
-
-  let lastSafeX: number | null = preflightWaypoints[preflightWaypoints.length - 1].x;
-  let lastSafeY: number | null = preflightWaypoints[preflightWaypoints.length - 1].y;
+  let lastSafeX: number | null = null;
+  let lastSafeY: number | null = null;
   let lastSurfaceX: number | null = null;
   let lastSurfaceY: number | null = null;
   let toolActive = false;
 
-  let travelDistanceMm = preflightTravelDistanceMm;
+  let travelDistanceMm = 0;
   let tuftDistanceMm = 0;
   let verticalDistanceMm = 0;
 

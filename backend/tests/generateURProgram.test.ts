@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { generateURProgram, generatePreflightProgram } from '../src/services/urGenerator';
+import { generateURProgram, generatePreflightProgram, generateToolTestProgram } from '../src/services/urGenerator';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../../tests/test-1.jpg');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/output');
 const OUTPUT_PATH = path.join(OUTPUT_DIR, 'test-1.urscript');
 const EXPECTED_METADATA = {
-  estimatedCycleTimeSeconds: 2523,
+  estimatedCycleTimeSeconds: 2513,
   resolution: '720x480',
   imageWidth: 720,
   imageHeight: 480,
@@ -51,4 +51,19 @@ test('generatePreflightProgram creates a five-waypoint routine with metadata', (
   assert.ok(metadata.travelDistanceMm > 0, 'Preflight travel distance should be greater than zero');
   assert.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
   assert.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
+});
+
+test('generateToolTestProgram jogs along Z and toggles the tool output', () => {
+  const { program, metadata } = generateToolTestProgram({
+    toolOutput: 3,
+    travelSpeedMmPerSec: 150,
+  });
+
+  assert.ok(program.includes('tuft_tool_test_program'), 'Program should define tuft_tool_test_program');
+  assert.ok(program.includes('pose_trans(start_pose'), 'Program should compute a relative Z pose');
+  assert.ok(program.includes('sleep(5.0)'), 'Program should dwell for five seconds');
+  assert.strictEqual(metadata.toolOutput, 3);
+  assert.strictEqual(metadata.displacementMeters, 0.15);
+  assert.strictEqual(metadata.dwellSeconds, 5);
+  assert.strictEqual(metadata.travelSpeedMmPerSec, 150);
 });

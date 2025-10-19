@@ -12,7 +12,7 @@ const FIXTURE_PATH = node_path_1.default.resolve(__dirname, '../../tests/test-1.
 const OUTPUT_DIR = node_path_1.default.resolve(__dirname, '../../tests/output');
 const OUTPUT_PATH = node_path_1.default.join(OUTPUT_DIR, 'test-1.urscript');
 const EXPECTED_METADATA = {
-    estimatedCycleTimeSeconds: 2523,
+    estimatedCycleTimeSeconds: 2513,
     resolution: '720x480',
     imageWidth: 720,
     imageHeight: 480,
@@ -42,7 +42,20 @@ strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty
     strict_1.default.ok(program.includes('tuft_preflight_program'), 'Program should define tuft_preflight_program');
     strict_1.default.strictEqual(metadata.waypoints.length, 5, 'Preflight should include four corners and a center waypoint');
     strict_1.default.ok(metadata.travelDistanceMm > 0, 'Preflight travel distance should be greater than zero');
-    strict_1.default.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
-    strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
+strict_1.default.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
+strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
+});
+(0, node_test_1.default)('generateToolTestProgram jogs along Z and toggles the tool output', () => {
+    const { program, metadata } = (0, urGenerator_1.generateToolTestProgram)({
+        toolOutput: 3,
+        travelSpeedMmPerSec: 150,
+    });
+    strict_1.default.ok(program.includes('tuft_tool_test_program'), 'Program should define tuft_tool_test_program');
+    strict_1.default.ok(program.includes('pose_trans(start_pose'), 'Program should compute a relative Z pose');
+    strict_1.default.ok(program.includes('sleep(5.0)'), 'Program should dwell for five seconds');
+    strict_1.default.strictEqual(metadata.toolOutput, 3);
+    strict_1.default.strictEqual(metadata.displacementMeters, 0.15);
+    strict_1.default.strictEqual(metadata.dwellSeconds, 5);
+    strict_1.default.strictEqual(metadata.travelSpeedMmPerSec, 150);
 });
 //# sourceMappingURL=generateURProgram.test.js.map

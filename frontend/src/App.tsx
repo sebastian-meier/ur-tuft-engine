@@ -29,6 +29,8 @@ const translations: Record<Language, {
     reset: string;
     preflight: string;
     preflightRunning: string;
+    toolTest: string;
+    toolTestRunning: string;
   };
   errors: {
     noFile: string;
@@ -67,6 +69,21 @@ const translations: Record<Language, {
       waypoints: string;
     };
   };
+  toolTest: {
+    heading: string;
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+    metadataLabels: {
+      jobId: string;
+      displacement: string;
+      dwell: string;
+      toolOutput: string;
+      travelSpeed: string;
+    };
+  };
   languageOptions: Record<Language, string>;
 }> = {
   en: {
@@ -84,6 +101,8 @@ const translations: Record<Language, {
       reset: 'Reset',
       preflight: 'Run Preflight',
       preflightRunning: 'Running preflight…',
+      toolTest: 'Test Tufting Gun',
+      toolTestRunning: 'Testing tufting gun…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -126,6 +145,21 @@ const translations: Record<Language, {
         waypoints: 'Waypoints',
       },
     },
+    toolTest: {
+      heading: 'Tufting Gun Test',
+      successDelivered: 'Tufting gun test program delivered to the robot.',
+      infoSkipped: 'Tufting gun test program generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Tufting gun test program generated, but sending to the robot failed:',
+      warningFailedFallback: 'Tufting gun test program generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while running the tufting gun test.',
+      metadataLabels: {
+        jobId: 'Job ID',
+        displacement: 'Z Displacement',
+        dwell: 'Dwell Duration',
+        toolOutput: 'Tool Output',
+        travelSpeed: 'Travel Speed',
+      },
+    },
     languageOptions: {
       en: 'English',
       de: 'Deutsch',
@@ -146,6 +180,8 @@ const translations: Record<Language, {
       reset: 'Zuruecksetzen',
       preflight: 'Preflight starten',
       preflightRunning: 'Preflight läuft…',
+      toolTest: 'Tufting-Gun testen',
+      toolTestRunning: 'Tufting-Gun-Test läuft…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -186,6 +222,21 @@ const translations: Record<Language, {
         coordinateFrame: 'Koordinatensystem',
         cornerDwell: 'Verweilzeit an den Ecken',
         waypoints: 'Wegpunkte',
+      },
+    },
+    toolTest: {
+      heading: 'Tufting-Gun-Test',
+      successDelivered: 'Testprogramm wurde an den Roboter gesendet.',
+      infoSkipped: 'Testprogramm generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Testprogramm generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Testprogramm generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Ausführen des Tufting-Gun-Tests.',
+      metadataLabels: {
+        jobId: 'Job-ID',
+        displacement: 'Z-Verschiebung',
+        dwell: 'Verweilzeit',
+        toolOutput: 'Digital-Ausgang',
+        travelSpeed: 'Verfahrgeschwindigkeit',
       },
     },
     languageOptions: {
@@ -238,6 +289,24 @@ interface PreflightResponse {
 
 type PreflightState = 'idle' | 'running' | 'success' | 'warning' | 'error';
 
+interface ToolTestResponse {
+  jobId: string;
+  metadata: {
+    displacementMeters: number;
+    dwellSeconds: number;
+    toolOutput: number;
+    travelSpeedMmPerSec: number;
+  };
+  program: string;
+  robotDelivery: {
+    attempted: boolean;
+    status: RobotStatus;
+    error?: string;
+  };
+}
+
+type ToolTestState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 /**
  * Renders the single-page upload workflow. Image previews are generated via an object URL that is
  * revoked once the component no longer needs it to avoid leaking resources.
@@ -252,6 +321,9 @@ function App() {
   const [preflightState, setPreflightState] = useState<PreflightState>('idle');
   const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
+  const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
+  const [toolTestError, setToolTestError] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -286,6 +358,9 @@ function App() {
     setPreflightState('idle');
     setPreflightResult(null);
     setPreflightError(null);
+    setToolTestState('idle');
+    setToolTestResult(null);
+    setToolTestError(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -371,6 +446,35 @@ function App() {
     }
   };
 
+  const handleToolTest = async () => {
+    setToolTestState('running');
+    setToolTestError(null);
+    setToolTestResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tool-test`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as ToolTestResponse & { error?: string };
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.error ?? 'Tool test failed.';
+        throw new Error(message);
+      }
+
+      setToolTestResult(payload);
+      setToolTestState(response.status === 202 ? 'warning' : 'success');
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setToolTestError(error.message);
+      } else {
+        setToolTestError(t.toolTest.errorUnexpected);
+      }
+      setToolTestState('error');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -440,6 +544,14 @@ function App() {
             >
               {preflightState === 'running' ? t.actions.preflightRunning : t.actions.preflight}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleToolTest}
+              disabled={uploadState === 'uploading' || toolTestState === 'running'}
+            >
+              {toolTestState === 'running' ? t.actions.toolTestRunning : t.actions.toolTest}
+            </button>
           </div>
         </form>
 
@@ -470,6 +582,20 @@ function App() {
         )}
         {preflightState === 'success' && preflightResult?.robotDelivery.status === 'skipped' && (
           <p className="message info">{t.preflight.infoSkipped}</p>
+        )}
+        {toolTestState === 'error' && toolTestError && <p className="message error">{toolTestError}</p>}
+        {toolTestState === 'warning' && toolTestResult?.robotDelivery.status === 'failed' && (
+          <p className="message warning">
+            {toolTestResult.robotDelivery.error
+              ? `${t.toolTest.warningFailedPrefix} ${toolTestResult.robotDelivery.error}`
+              : t.toolTest.warningFailedFallback}
+          </p>
+        )}
+        {toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'delivered' && (
+          <p className="message success">{t.toolTest.successDelivered}</p>
+        )}
+        {toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped' && (
+          <p className="message info">{t.toolTest.infoSkipped}</p>
         )}
       </section>
 
@@ -541,6 +667,32 @@ function App() {
             </li>
           </ul>
           <textarea className="program-output" value={preflightResult.program} readOnly rows={12} />
+        </section>
+      )}
+      {toolTestResult && (
+        <section className="panel">
+          <h2>{t.toolTest.heading}</h2>
+          <ul className="metadata">
+            <li>
+              <strong>{t.toolTest.metadataLabels.jobId}:</strong> {toolTestResult.jobId}
+            </li>
+            <li>
+              <strong>{t.toolTest.metadataLabels.displacement}:</strong>{' '}
+              {numberFormatter.format(toolTestResult.metadata.displacementMeters * 1000)} mm
+            </li>
+            <li>
+              <strong>{t.toolTest.metadataLabels.dwell}:</strong>{' '}
+              {numberFormatter.format(toolTestResult.metadata.dwellSeconds)} s
+            </li>
+            <li>
+              <strong>{t.toolTest.metadataLabels.toolOutput}:</strong> {toolTestResult.metadata.toolOutput}
+            </li>
+            <li>
+              <strong>{t.toolTest.metadataLabels.travelSpeed}:</strong>{' '}
+              {numberFormatter.format(toolTestResult.metadata.travelSpeedMmPerSec)} mm/s
+            </li>
+          </ul>
+          <textarea className="program-output" value={toolTestResult.program} readOnly rows={8} />
         </section>
       )}
     </main>
