@@ -138,6 +138,48 @@ button.secondary {
   border: 1px solid #d1d5eb;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+  max-width: 420px;
+  width: 100%;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #1f2351;
+}
+
+.modal p {
+  margin: 0;
+  color: #3f3f55;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .message {
   padding: 0.75rem 1rem;
   border-radius: 8px;

@@ -33,6 +33,9 @@ const translations: Record<Language, {
     toolTestRunning: string;
     boundingBox: string;
     boundingBoxRunning: string;
+    emergency: string;
+    emergencyConfirm: string;
+    emergencyCancel: string;
   };
   errors: {
     noFile: string;
@@ -101,6 +104,11 @@ const translations: Record<Language, {
       bounds: string;
     };
   };
+  emergencyModal: {
+    title: string;
+    body: string;
+    safetyReminder: string;
+  };
   languageOptions: Record<Language, string>;
 }> = {
   en: {
@@ -122,6 +130,9 @@ const translations: Record<Language, {
       toolTestRunning: 'Testing tufting gun…',
       boundingBox: 'Visit Tuft Area Corners',
       boundingBoxRunning: 'Moving to tuft area corners…',
+      emergency: 'Emergency Routine',
+      emergencyConfirm: 'Confirm & Execute',
+      emergencyCancel: 'Cancel',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -194,6 +205,11 @@ const translations: Record<Language, {
         bounds: 'Bounding Box',
       },
     },
+    emergencyModal: {
+      title: 'Important',
+      body: 'Please make sure the area around the robot is cleared and nobody is standing near the robot.',
+      safetyReminder: 'Make sure all safety guidelines are being followed.',
+    },
     languageOptions: {
       en: 'English',
       de: 'Deutsch',
@@ -218,6 +234,9 @@ const translations: Record<Language, {
       toolTestRunning: 'Tufting-Gun-Test läuft…',
       boundingBox: 'Ecken der Tuft-Fläche anfahren',
       boundingBoxRunning: 'Roboter fährt Tuft-Fläche ab…',
+      emergency: 'Notfallroutine',
+      emergencyConfirm: 'Bestätigen & Ausführen',
+      emergencyCancel: 'Abbrechen',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -289,6 +308,11 @@ const translations: Record<Language, {
         travelDistance: 'Verfahrweg',
         bounds: 'Begrenzungsfläche',
       },
+    },
+    emergencyModal: {
+      title: 'Wichtig',
+      body: 'Bitte stelle sicher, dass der Bereich um den Roboter frei ist und niemand neben dem Roboter steht.',
+      safetyReminder: 'Stelle sicher, dass alle Sicherheitsrichtlinien eingehalten werden.',
     },
     languageOptions: {
       en: 'English',
@@ -397,12 +421,14 @@ function App() {
   const [preflightState, setPreflightState] = useState<PreflightState>('idle');
   const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
-  const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
-  const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
-  const [toolTestError, setToolTestError] = useState<string | null>(null);
-  const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
-  const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineResponse | null>(null);
-  const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
+const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
+const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
+const [toolTestError, setToolTestError] = useState<string | null>(null);
+const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
+const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineResponse | null>(null);
+const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
+const [emergencyOpen, setEmergencyOpen] = useState(false);
+const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() => Promise<void>)>(null);
 
   const t = translations[language];
 
@@ -508,7 +534,12 @@ function App() {
     }
   };
 
-  const handlePreflight = async () => {
+const handlePreflight = () => {
+  setEmergencyOpen(true);
+  setPendingEmergencyAction(() => executePreflight);
+};
+
+const executePreflight = async () => {
     setPreflightState('running');
     setPreflightError(null);
     setPreflightResult(null);
@@ -537,7 +568,12 @@ function App() {
     }
   };
 
-  const handleToolTest = async () => {
+const handleToolTest = () => {
+  setEmergencyOpen(true);
+  setPendingEmergencyAction(() => executeToolTest);
+};
+
+  const executeToolTest = async () => {
     setToolTestState('running');
     setToolTestError(null);
     setToolTestResult(null);
@@ -566,10 +602,19 @@ function App() {
     }
   };
 
-  const handleBoundingBoxRoutine = async () => {
+const handleBoundingBoxRoutine = () => {
+  if (!result?.metadata.boundingBoxMm) {
+    setBoundingBoxError(t.boundingBox.missingBoundingBox);
+    setBoundingBoxState('error');
+    return;
+  }
+
+  setEmergencyOpen(true);
+  setPendingEmergencyAction(() => executeBoundingBoxRoutine);
+};
+
+  const executeBoundingBoxRoutine = async () => {
     if (!result?.metadata.boundingBoxMm) {
-      setBoundingBoxError(t.boundingBox.missingBoundingBox);
-      setBoundingBoxState('error');
       return;
     }
 
@@ -603,6 +648,27 @@ function App() {
       }
       setBoundingBoxState('error');
     }
+  };
+
+  const confirmEmergencyAction = () => {
+    const action = pendingEmergencyAction;
+    setEmergencyOpen(false);
+    setPendingEmergencyAction(null);
+    if (action) {
+      action().catch((error) => {
+        // surface generic error banner when confirmation action fails
+        if (error instanceof Error) {
+          setErrorState({ key: 'custom', message: error.message });
+        } else {
+          setErrorState({ key: 'unexpected' });
+        }
+      });
+    }
+  };
+
+  const cancelEmergencyAction = () => {
+    setEmergencyOpen(false);
+    setPendingEmergencyAction(null);
   };
 
   return (
@@ -885,6 +951,23 @@ function App() {
           </ul>
           <textarea className="program-output" value={boundingBoxResult.program} readOnly rows={8} />
         </section>
+      )}
+      {emergencyOpen && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="emergency-modal-title">
+            <h3 id="emergency-modal-title">{t.emergencyModal.title}</h3>
+            <p>{t.emergencyModal.body}</p>
+            <p>{t.emergencyModal.safetyReminder}</p>
+            <div className="modal-actions">
+              <button type="button" onClick={confirmEmergencyAction}>
+                {t.actions.emergencyConfirm}
+              </button>
+              <button type="button" className="secondary" onClick={cancelEmergencyAction}>
+                {t.actions.emergencyCancel}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
