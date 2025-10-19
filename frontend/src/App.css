@@ -206,6 +206,31 @@ button.secondary {
   color: #3730a3;
 }
 
+.introduction article {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.introduction article + article {
+  margin-top: 1rem;
+}
+
+.introduction h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1f2351;
+}
+
+.introduction ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #3f3f55;
+}
+
 .metadata {
   list-style: none;
   margin: 0;

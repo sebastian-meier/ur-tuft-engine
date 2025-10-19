@@ -109,6 +109,17 @@ const translations: Record<Language, {
     body: string;
     safetyReminder: string;
   };
+  introduction: {
+    heading: string;
+    start: {
+      heading: string;
+      steps: string[];
+    };
+    finish: {
+      heading: string;
+      steps: string[];
+    };
+  };
   languageOptions: Record<Language, string>;
 }> = {
   en: {
@@ -209,6 +220,25 @@ const translations: Record<Language, {
       title: 'Important',
       body: 'Please make sure the area around the robot is cleared and nobody is standing near the robot.',
       safetyReminder: 'Make sure all safety guidelines are being followed.',
+    },
+    introduction: {
+      heading: 'Introduction',
+      start: {
+        heading: 'Starting the system',
+        steps: [
+          'Demo step 1: Power on the main controller and check system indicators.',
+          'Demo step 2: Launch the tufting control software and connect to the robot.',
+          'Demo step 3: Load the current production job and review tool settings.',
+        ],
+      },
+      finish: {
+        heading: 'Finishing up',
+        steps: [
+          'Demo step 1: Run the parking routine to return the robot to a safe pose.',
+          'Demo step 2: Power down auxiliary equipment and secure the workspace.',
+          'Demo step 3: Record production notes and hand over to the next operator.',
+        ],
+      },
     },
     languageOptions: {
       en: 'English',
@@ -313,6 +343,25 @@ const translations: Record<Language, {
       title: 'Wichtig',
       body: 'Bitte stelle sicher, dass der Bereich um den Roboter frei ist und niemand neben dem Roboter steht.',
       safetyReminder: 'Stelle sicher, dass alle Sicherheitsrichtlinien eingehalten werden.',
+    },
+    introduction: {
+      heading: 'Einführung',
+      start: {
+        heading: 'Systemstart',
+        steps: [
+          'Demo Schritt 1: Hauptsteuerung einschalten und Statusanzeigen prüfen.',
+          'Demo Schritt 2: Tufting-Software starten und Verbindung zum Roboter herstellen.',
+          'Demo Schritt 3: Aktuellen Produktionsauftrag laden und Werkzeugeinstellungen prüfen.',
+        ],
+      },
+      finish: {
+        heading: 'Abschluss',
+        steps: [
+          'Demo Schritt 1: Parkroutine ausführen, um den Roboter in eine sichere Position zu fahren.',
+          'Demo Schritt 2: Zusätzliche Geräte ausschalten und den Arbeitsplatz sichern.',
+          'Demo Schritt 3: Produktionsnotizen dokumentieren und an die nächste Schicht übergeben.',
+        ],
+      },
     },
     languageOptions: {
       en: 'English',
@@ -688,6 +737,26 @@ const handleBoundingBoxRoutine = () => {
         <h1>{t.heroTitle}</h1>
         <p>{t.heroSubtitle}</p>
       </header>
+
+      <section className="panel introduction">
+        <h2>{t.introduction.heading}</h2>
+        <article>
+          <h3>{t.introduction.start.heading}</h3>
+          <ol>
+            {t.introduction.start.steps.map((step, index) => (
+              <li key={`start-step-${index}`}>{step}</li>
+            ))}
+          </ol>
+        </article>
+        <article>
+          <h3>{t.introduction.finish.heading}</h3>
+          <ol>
+            {t.introduction.finish.steps.map((step, index) => (
+              <li key={`finish-step-${index}`}>{step}</li>
+            ))}
+          </ol>
+        </article>
+      </section>
 
       <section className="panel">
         <form onSubmit={handleSubmit} className="upload-form">
