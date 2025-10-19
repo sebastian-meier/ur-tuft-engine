@@ -50,6 +50,8 @@ export interface URGenerationResult {
     tuftSegments: number;
     /** Total count of pixels classified as active/black. */
     activePixels: number;
+    /** Bounding box in millimetres covering all black pixels, or `null` when no black pixels were found. */
+    boundingBoxMm: BoundingBoxMm | null;
   };
 }
 
@@ -83,6 +85,26 @@ export interface ToolTestGenerationResult {
     dwellSeconds: number;
     /** Linear speed used for the motion, in millimetres per second. */
     travelSpeedMmPerSec: number;
+  };
+}
+
+export interface BoundingBoxMm {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export interface BoundingBoxRoutineResult {
+  /** fully formatted URScript program visiting each corner of the provided bounding box. */
+  program: string;
+  metadata: {
+    /** Bounding box coordinates used to generate the routine, in millimetres. */
+    boundingBox: BoundingBoxMm;
+    /** Coordinate frame variable applied to generated poses. */
+    coordinateFrame: string;
+    /** Total planar travel distance across the executed path, in millimetres. */
+    travelDistanceMm: number;
   };
 }
 
@@ -170,6 +192,61 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
       toolOutput: settings.toolOutput,
       dwellSeconds,
       travelSpeedMmPerSec: settings.travelSpeedMmPerSec,
+    },
+  };
+}
+
+export function generateBoundingBoxRoutine(
+  boundingBox: BoundingBoxMm,
+  options: URGenerationOptions = {},
+): BoundingBoxRoutineResult {
+  const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
+  const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
+    formatPose(coordinateFrameVariable, xMm, yMm, zMeters);
+
+  const moveAcceleration = 1.2;
+  const travelSpeed = settings.travelSpeedMmPerSec / 1000;
+  const safeZ = settings.safeHeightMm / 1000;
+
+  const corners = [
+    { x: boundingBox.minX, y: boundingBox.minY },
+    { x: boundingBox.maxX, y: boundingBox.minY },
+    { x: boundingBox.maxX, y: boundingBox.maxY },
+    { x: boundingBox.minX, y: boundingBox.maxY },
+  ];
+
+  let travelDistanceMm = 0;
+  for (let index = 1; index < corners.length; index += 1) {
+    travelDistanceMm += distance2D(
+      corners[index - 1].x,
+      corners[index - 1].y,
+      corners[index].x,
+      corners[index].y,
+    );
+  }
+
+  const programLines: string[] = [];
+  programLines.push(`def tuft_bounding_box_program():`);
+  programLines.push(`    textmsg("Visiting tufting bounding box corners")`);
+  programLines.push(
+    ...corners.map(
+      (corner) =>
+        `    movel(${formatPoseForFrame(corner.x, corner.y, safeZ)}, a=${moveAcceleration.toFixed(
+          1,
+        )}, v=${travelSpeed.toFixed(4)})`,
+    ),
+  );
+  programLines.push(`    textmsg("Bounding box traversal finished")`);
+  programLines.push(`end`);
+  programLines.push(`tuft_bounding_box_program()`);
+
+  return {
+    program: programLines.join('\n'),
+    metadata: {
+      boundingBox,
+      coordinateFrame: coordinateFrameVariable,
+      travelDistanceMm,
     },
   };
 }
@@ -344,6 +421,10 @@ export async function generateURProgram(
   // STEP 2: Group consecutive black pixels column-by-column into tuft segments.
   const columnPlans: ColumnPlan[] = [];
   let activePixels = 0;
+  let minColumn = Number.POSITIVE_INFINITY;
+  let maxColumn = Number.NEGATIVE_INFINITY;
+  let minRow = Number.POSITIVE_INFINITY;
+  let maxRow = Number.NEGATIVE_INFINITY;
 
   for (let column = 0; column < width; column += 1) {
     const segments: ColumnSegment[] = [];
@@ -359,6 +440,19 @@ export async function generateURProgram(
         const end = row - 1;
         segments.push({ start, end });
         activePixels += end - start + 1;
+
+        if (column < minColumn) {
+          minColumn = column;
+        }
+        if (column > maxColumn) {
+          maxColumn = column;
+        }
+        if (start < minRow) {
+          minRow = start;
+        }
+        if (end > maxRow) {
+          maxRow = end;
+        }
       } else {
         row += 1;
       }
@@ -370,6 +464,15 @@ export async function generateURProgram(
   }
 
   const tuftSegments = columnPlans.reduce((total, plan) => total + plan.segments.length, 0);
+  const hasActivePixels = activePixels > 0 && Number.isFinite(minColumn);
+  const boundingBoxMm = hasActivePixels
+    ? {
+        minX: minColumn * pixelWidthMm,
+        maxX: (maxColumn + 1) * pixelWidthMm,
+        minY: minRow * pixelHeightMm,
+        maxY: (maxRow + 1) * pixelHeightMm,
+      }
+    : null;
 
   const programLines: string[] = [];
   programLines.push(`def tuft_program():`);
@@ -394,6 +497,7 @@ export async function generateURProgram(
         imageHeight: height,
         tuftSegments,
         activePixels,
+        boundingBoxMm,
       },
     };
   }
@@ -534,6 +638,7 @@ export async function generateURProgram(
       imageHeight: height,
       tuftSegments,
       activePixels,
+      boundingBoxMm,
     },
   };
 }

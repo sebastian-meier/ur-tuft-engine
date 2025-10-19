@@ -31,6 +31,8 @@ const translations: Record<Language, {
     preflightRunning: string;
     toolTest: string;
     toolTestRunning: string;
+    boundingBox: string;
+    boundingBoxRunning: string;
   };
   errors: {
     noFile: string;
@@ -84,6 +86,21 @@ const translations: Record<Language, {
       travelSpeed: string;
     };
   };
+  boundingBox: {
+    heading: string;
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+    missingBoundingBox: string;
+    metadataLabels: {
+      jobId: string;
+      coordinateFrame: string;
+      travelDistance: string;
+      bounds: string;
+    };
+  };
   languageOptions: Record<Language, string>;
 }> = {
   en: {
@@ -103,6 +120,8 @@ const translations: Record<Language, {
       preflightRunning: 'Running preflight…',
       toolTest: 'Test Tufting Gun',
       toolTestRunning: 'Testing tufting gun…',
+      boundingBox: 'Visit Tuft Area Corners',
+      boundingBoxRunning: 'Moving to tuft area corners…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -160,6 +179,21 @@ const translations: Record<Language, {
         travelSpeed: 'Travel Speed',
       },
     },
+    boundingBox: {
+      heading: 'Bounding Box Corners',
+      successDelivered: 'Bounding box routine delivered to the robot.',
+      infoSkipped: 'Bounding box routine generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Bounding box routine generated, but sending to the robot failed:',
+      warningFailedFallback: 'Bounding box routine generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while moving to bounding box corners.',
+      missingBoundingBox: 'Generate a tufting program first to determine the bounding box.',
+      metadataLabels: {
+        jobId: 'Job ID',
+        coordinateFrame: 'Coordinate Frame',
+        travelDistance: 'Travel Distance',
+        bounds: 'Bounding Box',
+      },
+    },
     languageOptions: {
       en: 'English',
       de: 'Deutsch',
@@ -182,6 +216,8 @@ const translations: Record<Language, {
       preflightRunning: 'Preflight läuft…',
       toolTest: 'Tufting-Gun testen',
       toolTestRunning: 'Tufting-Gun-Test läuft…',
+      boundingBox: 'Ecken der Tuft-Fläche anfahren',
+      boundingBoxRunning: 'Roboter fährt Tuft-Fläche ab…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -239,6 +275,21 @@ const translations: Record<Language, {
         travelSpeed: 'Verfahrgeschwindigkeit',
       },
     },
+    boundingBox: {
+      heading: 'Ecken der Tuft-Fläche',
+      successDelivered: 'Routine wurde an den Roboter gesendet.',
+      infoSkipped: 'Routine generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Routine generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Routine generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Anfahren der Tuft-Flächen-Ecken.',
+      missingBoundingBox: 'Erzeuge zuerst ein Tufting-Programm, um die Begrenzungsfläche zu bestimmen.',
+      metadataLabels: {
+        jobId: 'Job-ID',
+        coordinateFrame: 'Koordinatensystem',
+        travelDistance: 'Verfahrweg',
+        bounds: 'Begrenzungsfläche',
+      },
+    },
     languageOptions: {
       en: 'English',
       de: 'Deutsch',
@@ -252,6 +303,13 @@ type ErrorState =
   | { key: 'unexpected' }
   | { key: 'custom'; message: string };
 
+interface BoundingBoxMm {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
 interface UploadResponse {
   jobId: string;
   metadata: {
@@ -261,6 +319,7 @@ interface UploadResponse {
     imageHeight: number;
     tuftSegments: number;
     activePixels: number;
+    boundingBoxMm: BoundingBoxMm | null;
   };
   program: string;
   robotDelivery: {
@@ -307,6 +366,23 @@ interface ToolTestResponse {
 
 type ToolTestState = 'idle' | 'running' | 'success' | 'warning' | 'error';
 
+interface BoundingBoxRoutineResponse {
+  jobId: string;
+  metadata: {
+    boundingBox: BoundingBoxMm;
+    coordinateFrame: string;
+    travelDistanceMm: number;
+  };
+  program: string;
+  robotDelivery: {
+    attempted: boolean;
+    status: RobotStatus;
+    error?: string;
+  };
+}
+
+type BoundingBoxRoutineState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 /**
  * Renders the single-page upload workflow. Image previews are generated via an object URL that is
  * revoked once the component no longer needs it to avoid leaking resources.
@@ -324,6 +400,9 @@ function App() {
   const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
   const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
   const [toolTestError, setToolTestError] = useState<string | null>(null);
+  const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
+  const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineResponse | null>(null);
+  const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -361,6 +440,9 @@ function App() {
     setToolTestState('idle');
     setToolTestResult(null);
     setToolTestError(null);
+    setBoundingBoxState('idle');
+    setBoundingBoxResult(null);
+    setBoundingBoxError(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -388,6 +470,15 @@ function App() {
     setUploadState('uploading');
     setErrorState({ key: 'none' });
     setResult(null);
+    setPreflightState('idle');
+    setPreflightResult(null);
+    setPreflightError(null);
+    setToolTestState('idle');
+    setToolTestResult(null);
+    setToolTestError(null);
+    setBoundingBoxState('idle');
+    setBoundingBoxResult(null);
+    setBoundingBoxError(null);
 
     try {
       const formData = new FormData();
@@ -475,6 +566,45 @@ function App() {
     }
   };
 
+  const handleBoundingBoxRoutine = async () => {
+    if (!result?.metadata.boundingBoxMm) {
+      setBoundingBoxError(t.boundingBox.missingBoundingBox);
+      setBoundingBoxState('error');
+      return;
+    }
+
+    setBoundingBoxState('running');
+    setBoundingBoxError(null);
+    setBoundingBoxResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/bounding-box`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(result.metadata.boundingBoxMm),
+      });
+
+      const payload = (await response.json()) as BoundingBoxRoutineResponse & { error?: string };
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.error ?? 'Bounding box routine failed.';
+        throw new Error(message);
+      }
+
+      setBoundingBoxResult(payload);
+      setBoundingBoxState(response.status === 202 ? 'warning' : 'success');
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setBoundingBoxError(error.message);
+      } else {
+        setBoundingBoxError(t.boundingBox.errorUnexpected);
+      }
+      setBoundingBoxState('error');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -552,6 +682,18 @@ function App() {
             >
               {toolTestState === 'running' ? t.actions.toolTestRunning : t.actions.toolTest}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleBoundingBoxRoutine}
+              disabled={
+                uploadState === 'uploading' ||
+                boundingBoxState === 'running' ||
+                !result?.metadata.boundingBoxMm
+              }
+            >
+              {boundingBoxState === 'running' ? t.actions.boundingBoxRunning : t.actions.boundingBox}
+            </button>
           </div>
         </form>
 
@@ -597,6 +739,20 @@ function App() {
         {toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped' && (
           <p className="message info">{t.toolTest.infoSkipped}</p>
         )}
+        {boundingBoxState === 'error' && boundingBoxError && <p className="message error">{boundingBoxError}</p>}
+        {boundingBoxState === 'warning' && boundingBoxResult?.robotDelivery.status === 'failed' && (
+          <p className="message warning">
+            {boundingBoxResult.robotDelivery.error
+              ? `${t.boundingBox.warningFailedPrefix} ${boundingBoxResult.robotDelivery.error}`
+              : t.boundingBox.warningFailedFallback}
+          </p>
+        )}
+        {boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'delivered' && (
+          <p className="message success">{t.boundingBox.successDelivered}</p>
+        )}
+        {boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'skipped' && (
+          <p className="message info">{t.boundingBox.infoSkipped}</p>
+        )}
       </section>
 
       {result && (
@@ -625,6 +781,15 @@ function App() {
             <li>
               <strong>{t.metadataLabels.robotDelivery}:</strong> {t.robotDeliveryStatus[result.robotDelivery.status]}
             </li>
+            {result.metadata.boundingBoxMm && (
+              <li>
+                <strong>{t.boundingBox.metadataLabels.bounds}:</strong>{' '}
+                ({numberFormatter.format(result.metadata.boundingBoxMm.minX)} mm,{' '}
+                {numberFormatter.format(result.metadata.boundingBoxMm.minY)} mm) → (
+                {numberFormatter.format(result.metadata.boundingBoxMm.maxX)} mm,{' '}
+                {numberFormatter.format(result.metadata.boundingBoxMm.maxY)} mm)
+              </li>
+            )}
           </ul>
           <textarea className="program-output" value={result.program} readOnly rows={16} />
         </section>
@@ -693,6 +858,32 @@ function App() {
             </li>
           </ul>
           <textarea className="program-output" value={toolTestResult.program} readOnly rows={8} />
+        </section>
+      )}
+      {boundingBoxResult && (
+        <section className="panel">
+          <h2>{t.boundingBox.heading}</h2>
+          <ul className="metadata">
+            <li>
+              <strong>{t.boundingBox.metadataLabels.jobId}:</strong> {boundingBoxResult.jobId}
+            </li>
+            <li>
+              <strong>{t.boundingBox.metadataLabels.coordinateFrame}:</strong>{' '}
+              {boundingBoxResult.metadata.coordinateFrame}
+            </li>
+            <li>
+              <strong>{t.boundingBox.metadataLabels.travelDistance}:</strong>{' '}
+              {numberFormatter.format(boundingBoxResult.metadata.travelDistanceMm)} mm
+            </li>
+            <li>
+              <strong>{t.boundingBox.metadataLabels.bounds}:</strong>{' '}
+              ({numberFormatter.format(boundingBoxResult.metadata.boundingBox.minX)} mm,{' '}
+              {numberFormatter.format(boundingBoxResult.metadata.boundingBox.minY)} mm) → (
+              {numberFormatter.format(boundingBoxResult.metadata.boundingBox.maxX)} mm,{' '}
+              {numberFormatter.format(boundingBoxResult.metadata.boundingBox.maxY)} mm)
+            </li>
+          </ul>
+          <textarea className="program-output" value={boundingBoxResult.program} readOnly rows={8} />
         </section>
       )}
     </main>

@@ -2,7 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { generateURProgram, generatePreflightProgram, generateToolTestProgram } from '../src/services/urGenerator';
+import {
+  generateURProgram,
+  generatePreflightProgram,
+  generateToolTestProgram,
+  generateBoundingBoxRoutine,
+  BoundingBoxMm,
+} from '../src/services/urGenerator';
 
 const FIXTURE_PATH = path.resolve(__dirname, '../../tests/test-1.jpg');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/output');
@@ -29,6 +35,15 @@ test('generateURProgram emits expected metadata and program for test fixture', a
   assert.strictEqual(result.metadata.imageHeight, EXPECTED_METADATA.imageHeight);
   assert.strictEqual(result.metadata.tuftSegments, EXPECTED_METADATA.tuftSegments);
   assert.strictEqual(result.metadata.activePixels, EXPECTED_METADATA.activePixels);
+  assert.ok(result.metadata.boundingBoxMm, 'Bounding box metadata should be present when dark pixels exist');
+  if (result.metadata.boundingBoxMm) {
+    const { minX, maxX, minY, maxY } = result.metadata.boundingBoxMm;
+    for (const value of [minX, maxX, minY, maxY]) {
+      assert.ok(Number.isFinite(value), 'Bounding box coordinates should be finite numbers');
+    }
+    assert.ok(minX < maxX, 'Bounding box minX should be smaller than maxX');
+    assert.ok(minY < maxY, 'Bounding box minY should be smaller than maxY');
+  }
 
   assert.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
   assert.ok(
@@ -66,4 +81,23 @@ test('generateToolTestProgram jogs along Z and toggles the tool output', () => {
   assert.strictEqual(metadata.displacementMeters, 0.15);
   assert.strictEqual(metadata.dwellSeconds, 5);
   assert.strictEqual(metadata.travelSpeedMmPerSec, 150);
+});
+
+test('generateBoundingBoxRoutine emits moves for each supplied corner', () => {
+  const boundingBox: BoundingBoxMm = {
+    minX: 10,
+    maxX: 30,
+    minY: 5,
+    maxY: 25,
+  };
+
+  const { program, metadata } = generateBoundingBoxRoutine(boundingBox, {
+    safeHeightMm: 120,
+    travelSpeedMmPerSec: 180,
+  });
+
+  assert.ok(program.includes('tuft_bounding_box_program'), 'Program should define tuft_bounding_box_program');
+  assert.ok(program.includes('p[0.0100'), 'Program should reference minimum X corner');
+  assert.deepEqual(metadata.boundingBox, boundingBox, 'Metadata should echo the provided bounding box');
+  assert.ok(metadata.travelDistanceMm > 0, 'Routine should include travel distance');
 });

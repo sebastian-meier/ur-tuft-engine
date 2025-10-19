@@ -30,9 +30,18 @@ const EXPECTED_METADATA = {
     strict_1.default.strictEqual(result.metadata.imageHeight, EXPECTED_METADATA.imageHeight);
     strict_1.default.strictEqual(result.metadata.tuftSegments, EXPECTED_METADATA.tuftSegments);
     strict_1.default.strictEqual(result.metadata.activePixels, EXPECTED_METADATA.activePixels);
+    strict_1.default.ok(result.metadata.boundingBoxMm, 'Bounding box metadata should be present when dark pixels exist');
+    if (result.metadata.boundingBoxMm) {
+        const { minX, maxX, minY, maxY } = result.metadata.boundingBoxMm;
+        for (const value of [minX, maxX, minY, maxY]) {
+            strict_1.default.ok(Number.isFinite(value), 'Bounding box coordinates should be finite numbers');
+        }
+        strict_1.default.ok(minX < maxX, 'Bounding box minX should be smaller than maxX');
+        strict_1.default.ok(minY < maxY, 'Bounding box minY should be smaller than maxY');
+    }
     strict_1.default.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
     const stats = await node_fs_1.promises.stat(OUTPUT_PATH);
-strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty');
+    strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty');
 });
 (0, node_test_1.default)('generatePreflightProgram creates a five-waypoint routine with metadata', () => {
     const { program, metadata } = (0, urGenerator_1.generatePreflightProgram)({
@@ -42,8 +51,8 @@ strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty
     strict_1.default.ok(program.includes('tuft_preflight_program'), 'Program should define tuft_preflight_program');
     strict_1.default.strictEqual(metadata.waypoints.length, 5, 'Preflight should include four corners and a center waypoint');
     strict_1.default.ok(metadata.travelDistanceMm > 0, 'Preflight travel distance should be greater than zero');
-strict_1.default.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
-strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
+    strict_1.default.ok(metadata.estimatedCycleTimeSeconds > 0, 'Preflight duration should be greater than zero');
+    strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight should dwell at each corner');
 });
 (0, node_test_1.default)('generateToolTestProgram jogs along Z and toggles the tool output', () => {
     const { program, metadata } = (0, urGenerator_1.generateToolTestProgram)({
@@ -57,5 +66,21 @@ strict_1.default.strictEqual(metadata.cornerDwellSeconds > 0, true, 'Preflight s
     strict_1.default.strictEqual(metadata.displacementMeters, 0.15);
     strict_1.default.strictEqual(metadata.dwellSeconds, 5);
     strict_1.default.strictEqual(metadata.travelSpeedMmPerSec, 150);
+});
+(0, node_test_1.default)('generateBoundingBoxRoutine emits moves for each supplied corner', () => {
+    const boundingBox = {
+        minX: 10,
+        maxX: 30,
+        minY: 5,
+        maxY: 25,
+    };
+    const { program, metadata } = (0, urGenerator_1.generateBoundingBoxRoutine)(boundingBox, {
+        safeHeightMm: 120,
+        travelSpeedMmPerSec: 180,
+    });
+    strict_1.default.ok(program.includes('tuft_bounding_box_program'), 'Program should define tuft_bounding_box_program');
+    strict_1.default.ok(program.includes('p[0.0100'), 'Program should reference minimum X corner');
+    strict_1.default.deepEqual(metadata.boundingBox, boundingBox, 'Metadata should echo the provided bounding box');
+    strict_1.default.ok(metadata.travelDistanceMm > 0, 'Routine should include travel distance');
 });
 //# sourceMappingURL=generateURProgram.test.js.map

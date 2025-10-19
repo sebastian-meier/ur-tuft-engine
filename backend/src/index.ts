@@ -11,6 +11,7 @@ import { config } from './config';
 import uploadRouter from './routes/upload';
 import preflightRouter from './routes/preflight';
 import toolTestRouter from './routes/toolTest';
+import boundingBoxRouter from './routes/boundingBox';
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/images', uploadRouter);
 app.use('/api/preflight', preflightRouter);
 app.use('/api/tool-test', toolTestRouter);
+app.use('/api/bounding-box', boundingBoxRouter);
 
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.
