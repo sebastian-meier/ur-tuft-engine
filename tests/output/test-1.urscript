@@ -2,8 +2,6 @@ def tuft_program():
     global tuft_coords = p[-0.743799, 1.270828, -0.183331, 1.574839, 0.004352, -0.002073]
     global current_pose = p[0,0,0,-1.19353,1.19941,1.24224]
     textmsg("Starting tufting job test-1.jpg")
-    current_pose = get_actual_tcp_pose()
-    textmsg("current_pose: ", current_pose)
     textmsg("Using coordinate frame tuft_coords")
     set_digital_out(0, False)
     global travel_speed = 0.2000

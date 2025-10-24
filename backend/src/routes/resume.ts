@@ -29,7 +29,7 @@ router.post('/', async (req, res) => {
   const program = buildResumeProgram(jobId, context, resumePosition);
 
   if (!program) {
-    res.status(200).json({ robotDelivery: { attempted: false, status: 'skipped' as const }, resumePosition });
+    res.status(200).json({ robotDelivery: { attempted: false, status: 'skipped' as const }, resumePosition, program: null });
     return;
   }
 
@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
     }
   }
 
-  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({ robotDelivery, resumePosition });
+  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({ robotDelivery, resumePosition, program });
 });
 
 export default router;

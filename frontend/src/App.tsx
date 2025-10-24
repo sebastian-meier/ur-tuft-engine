@@ -542,9 +542,11 @@ const [jobProgress, setJobProgress] = useState<{ current: number; total: number 
 const [pauseState, setPauseState] = useState<PauseState>('idle');
 const [pauseError, setPauseError] = useState<string | null>(null);
 const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
+const [pauseProgram, setPauseProgram] = useState<string | null>(null);
 const [resumeState, setResumeState] = useState<PauseState>('idle');
 const [resumeError, setResumeError] = useState<string | null>(null);
 const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('skipped');
+const [resumeProgram, setResumeProgram] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -621,9 +623,11 @@ const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('s
     setPauseState('idle');
     setPauseError(null);
     setPauseDeliveryStatus('skipped');
+    setPauseProgram(null);
     setResumeState('idle');
     setResumeError(null);
     setResumeDeliveryStatus('skipped');
+    setResumeProgram(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -695,9 +699,11 @@ const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('s
       setPauseState('idle');
       setPauseError(null);
       setPauseDeliveryStatus('skipped');
+      setPauseProgram(null);
       setResumeState('idle');
       setResumeError(null);
       setResumeDeliveryStatus('skipped');
+      setResumeProgram(null);
     }
   };
 
@@ -847,6 +853,7 @@ const handleBoundingBoxRoutine = () => {
     setPauseState('running');
     setPauseError(null);
     setPauseDeliveryStatus('skipped');
+    setPauseProgram(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/pause`, {
@@ -857,9 +864,10 @@ const handleBoundingBoxRoutine = () => {
         body: JSON.stringify(result?.jobId ? { jobId: result.jobId } : {}),
       });
 
-      const payload = (await response.json()) as { robotDelivery: { status: RobotStatus; error?: string } };
+      const payload = (await response.json()) as { robotDelivery: { status: RobotStatus; error?: string }; program?: string | null };
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setPauseDeliveryStatus(deliveryStatus);
+      setPauseProgram(payload.program ?? null);
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Pause request failed.';
@@ -903,6 +911,7 @@ const handleBoundingBoxRoutine = () => {
     setResumeState('running');
     setResumeError(null);
     setResumeDeliveryStatus('skipped');
+    setResumeProgram(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/resume`, {
@@ -916,10 +925,12 @@ const handleBoundingBoxRoutine = () => {
       const payload = (await response.json()) as {
         robotDelivery: { status: RobotStatus; error?: string };
         resumePosition?: number;
+        program?: string | null;
       };
 
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setResumeDeliveryStatus(deliveryStatus);
+      setResumeProgram(payload.program ?? null);
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Resume request failed.';
@@ -1289,6 +1300,18 @@ const handleBoundingBoxRoutine = () => {
             </li>
           </ul>
           <textarea className="program-output" value={boundingBoxResult.program} readOnly rows={8} />
+        </section>
+      )}
+      {pauseProgram && (
+        <section className="panel">
+          <h2>{t.actions.pause}</h2>
+          <textarea className="program-output" value={pauseProgram} readOnly rows={8} />
+        </section>
+      )}
+      {resumeProgram && (
+        <section className="panel">
+          <h2>{t.actions.resume}</h2>
+          <textarea className="program-output" value={resumeProgram} readOnly rows={8} />
         </section>
       )}
       {emergencyOpen && (
