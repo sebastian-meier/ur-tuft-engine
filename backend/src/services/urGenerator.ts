@@ -13,6 +13,8 @@ export interface URGenerationOptions {
   workpieceWidthMm?: number;
   /** Physical height of the workpiece the image spans, in millimetres. */
   workpieceHeightMm?: number;
+  /** Buffer from the border. */
+  workpieceBufferMm?: number;
   /** Clearance height in millimetres for safe moves above the surface. */
   safeHeightMm?: number;
   /** Distance in millimetres to descend from safe height to contact the surface. */
@@ -29,6 +31,10 @@ export interface URGenerationOptions {
   contactForceThresholdN?: number;
   /** URScript variable name referencing the coordinate frame applied to generated poses. */
   coordinateFrameVariable?: string;
+  /** URScript variable of the coordinate system pose (as planes are not available from code). */
+  coordinateString?: string;
+  /** URScript variable of the angle of the tool. */
+  poseString?: string;
   /** Optional HTTP URL invoked by the robot after each move to report progress. */
   progressCallbackUrl?: string;
 }
@@ -123,14 +129,18 @@ export function generatePreflightProgram(options: URGenerationOptions = {}): Pre
   const safeZ = settings.safeHeightMm / 1000;
   const travelSpeed = settings.travelSpeedMmPerSec / 1000;
 
-  const preflightWaypoints = buildPreflightWaypoints(settings.workpieceWidthMm, settings.workpieceHeightMm);
+  const preflightWaypoints = buildPreflightWaypoints(settings.workpieceWidthMm, settings.workpieceHeightMm, settings.workpieceBufferMm);
   const travelDistanceMm = calculatePreflightTravelDistance(preflightWaypoints);
   const totalDwellSeconds =
     preflightWaypoints.filter((waypoint) => waypoint.dwell).length * PREFLIGHT_DWELL_SECONDS;
 
   const programLines: string[] = [];
   programLines.push(`def tuft_preflight_program():`);
+  programLines.push(settings.coordinateString);
+  programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tuft preflight routine")`);
+  programLines.push(`    current_poser = get_actual_tcp_pose()`);
+  programLines.push(`    textmsg("current_pose: ", current_poser)`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(
     ...createPreflightMoveLines({
@@ -305,6 +315,7 @@ const escapeStringForUrScript = (value: string): string => value.replace(/"/g, '
 const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   workpieceWidthMm: 500,
   workpieceHeightMm: 500,
+  workpieceBufferMm: 50,
   safeHeightMm: 150,
   tuftHeightMm: 5,
   toolOutput: 0,
@@ -312,7 +323,9 @@ const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   tuftSpeedMmPerSec: 60,
   blackPixelThreshold: 64,
   contactForceThresholdN: 15,
-  coordinateFrameVariable: 'tuftCoord',
+  coordinateFrameVariable: 'tuft_coords',
+  coordinateString: '    global tuft_coords = p[-0.743799, 1.270828, -0.183331, 1.574839, 0.004352, -0.002073]',
+  poseString: '    global current_pose = p[0,0,0,-1.19353,1.19941,1.24224]',
   progressCallbackUrl: '',
 };
 
@@ -340,7 +353,7 @@ const formatPose = (frameVariable: string, xMm: number, yMm: number, zMeters: nu
   const x = (xMm / 1000).toFixed(4);
   const y = (yMm / 1000).toFixed(4);
   const z = zMeters.toFixed(4);
-  return `pose_trans(${frameVariable}, p[${x}, ${y}, ${z}, ${RAD_ORIENTATION.rx.toFixed(4)}, ${RAD_ORIENTATION.ry.toFixed(4)}, ${RAD_ORIENTATION.rz.toFixed(4)}])`;
+  return `pose_trans(${frameVariable}, p[${x}, ${y}, ${z}, 0, 0, 0])`;
 };
 
 /**
@@ -352,11 +365,11 @@ const distance2D = (x1: number, y1: number, x2: number, y2: number): number => {
   return Math.hypot(dx, dy);
 };
 
-const buildPreflightWaypoints = (workpieceWidthMm: number, workpieceHeightMm: number): PreflightWaypoint[] => [
-  { x: 0, y: 0, dwell: true },
-  { x: workpieceWidthMm, y: 0, dwell: true },
-  { x: workpieceWidthMm, y: workpieceHeightMm, dwell: true },
-  { x: 0, y: workpieceHeightMm, dwell: true },
+const buildPreflightWaypoints = (workpieceWidthMm: number, workpieceHeightMm: number, workpieceBufferMm: number): PreflightWaypoint[] => [
+  { x: workpieceBufferMm, y: workpieceBufferMm, dwell: true },
+  { x: workpieceWidthMm - workpieceBufferMm, y: workpieceBufferMm, dwell: true },
+  { x: workpieceWidthMm - workpieceBufferMm, y: workpieceHeightMm - workpieceBufferMm, dwell: true },
+  { x: workpieceBufferMm, y: workpieceHeightMm - workpieceBufferMm, dwell: true },
   { x: workpieceWidthMm / 2, y: workpieceHeightMm / 2, dwell: false },
 ];
 
@@ -391,8 +404,9 @@ const createPreflightMoveLines = ({
   const lines: string[] = [];
 
   for (const waypoint of waypoints) {
+    lines.push(`new_pose = ${formatPoseForFrame(waypoint.x, waypoint.y, safeZ)}`);
     lines.push(
-      `${indent}movel(${formatPoseForFrame(waypoint.x, waypoint.y, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+      `${indent}movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     if (waypoint.dwell) {
       lines.push(`${indent}sleep(${PREFLIGHT_DWELL_SECONDS.toFixed(1)})`);
@@ -528,6 +542,8 @@ export async function generateURProgram(
   programLines.push(`    global tuft_speed = ${tuftSpeed.toFixed(4)}`);
   programLines.push(`    global contact_force_threshold = ${contactForceThreshold.toFixed(2)}`);
   programLines.push(`    global contact_probe_step = ${contactStepMeters.toFixed(4)}`);
+  programLines.push(settings.coordinateString);
+  programLines.push(settings.poseString);
 
   let progressTotalLineIndex: number | null = null;
   if (progressConfig) {

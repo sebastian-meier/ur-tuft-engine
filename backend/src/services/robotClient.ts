@@ -20,23 +20,28 @@ export async function sendProgramToRobot(program: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const client = new net.Socket();
 
-    client.once('error', (error) => {
+    client.on('error', (error) => {
+      client.end();
       client.destroy();
       reject(error);
     });
 
+    client.on('close', () => resolve());
+
     client.connect(config.robot.port, config.robot.host, () => {
       client.write(`${program}\n`, 'utf8', (writeError) => {
         if (writeError) {
+          client.end();
           client.destroy();
           reject(writeError);
           return;
         }
 
         client.end();
+        client.destroy();
       });
     });
 
-    client.once('close', () => resolve());
+    
   });
 }

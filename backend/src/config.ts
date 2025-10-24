@@ -38,6 +38,8 @@ export interface ToolpathConfig {
   workpieceWidthMm: number;
   /** Height of the physical workpiece in millimetres represented by the uploaded bitmap. */
   workpieceHeightMm: number;
+  /** Buffer from the border. */
+  workpieceBufferMm: number;
   /** Clearance height in millimetres used for safe travel moves. */
   safeHeightMm: number;
   /** Depth in millimetres from the safe height to reach the surface. */
@@ -99,6 +101,7 @@ export const config: AppConfig = {
   toolpath: {
     workpieceWidthMm: Math.max(1, parseNumber(process.env.WORKPIECE_WIDTH_MM, 500)),
     workpieceHeightMm: Math.max(1, parseNumber(process.env.WORKPIECE_HEIGHT_MM, 500)),
+    workpieceBufferMm: Math.max(1, parseNumber(process.env.WORKPIECE_BUFFER_MM, 50)),
     safeHeightMm: Math.max(10, parseNumber(process.env.SAFE_HEIGHT_MM, 150)),
     tuftHeightMm: Math.max(1, parseNumber(process.env.TUFT_HEIGHT_MM, 5)),
     blackPixelThreshold: Math.min(255, Math.max(0, parseNumber(process.env.BLACK_PIXEL_THRESHOLD, 64))),
