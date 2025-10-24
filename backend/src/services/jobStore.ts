@@ -7,7 +7,7 @@ interface ProgressConfig {
 
 export interface JobContext {
   jobId: string;
-  movementCommands: string[];
+  movementBlocks: string[][];
   coordinateFrameVariable: string;
   progressConfig: ProgressConfig | null;
   movementCount: number;
@@ -15,6 +15,8 @@ export interface JobContext {
   travelSpeed: number;
   tuftSpeed: number;
   toolOutput: number;
+  coordinateString: string;
+  poseString: string;
 }
 
 const jobContexts = new Map<string, JobContext>();
@@ -36,13 +38,17 @@ export function buildResumeProgram(
   context: JobContext,
   startIndex: number,
 ): string | null {
-  if (startIndex >= context.movementCommands.length) {
+  if (startIndex >= context.movementBlocks.length) {
     return null;
   }
 
   const lines: string[] = [];
   lines.push('def tuft_resume_program():');
+  lines.push(context.coordinateString);
+  lines.push(context.poseString);
   lines.push(`    textmsg("Resuming tufting job ${jobId}")`);
+  lines.push('    current_pose = get_actual_tcp_pose()');
+  lines.push('    textmsg("current_pose: ", current_pose)');
   lines.push(`    set_digital_out(${context.toolOutput}, False)`);
   lines.push(`    global travel_speed = ${(context.travelSpeed).toFixed(4)}`);
   lines.push(`    global tuft_speed = ${(context.tuftSpeed).toFixed(4)}`);
@@ -72,11 +78,13 @@ export function buildResumeProgram(
     lines.push('    end');
   }
 
-  for (let i = startIndex; i < context.movementCommands.length; i += 1) {
-    const command = context.movementCommands[i];
-    lines.push(command);
+  for (let i = startIndex; i < context.movementBlocks.length; i += 1) {
+    const block = context.movementBlocks[i];
+    for (const line of block) {
+      lines.push(line);
+    }
     if (context.progressConfig) {
-      const indent = command.match(/^(\s*)/)?.[1] ?? '    ';
+      const indent = block[block.length - 1].match(/^(\s*)/)?.[1] ?? '    ';
       lines.push(`${indent}report_progress()`);
     }
   }
