@@ -38,6 +38,8 @@ const translations: Record<Language, {
     emergencyCancel: string;
     pause: string;
     pauseRunning: string;
+    resume: string;
+    resumeRunning: string;
   };
   errors: {
     noFile: string;
@@ -111,6 +113,20 @@ const translations: Record<Language, {
     title: string;
     body: string;
     safetyReminder: string;
+  };
+  pause: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
+  resume: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
   };
   introduction: {
     heading: string;
@@ -434,6 +450,7 @@ interface UploadResponse {
     tuftSegments: number;
     activePixels: number;
     boundingBoxMm: BoundingBoxMm | null;
+    movementCount: number;
   };
   program: string;
   robotDelivery: {
@@ -1297,17 +1314,3 @@ const handleBoundingBoxRoutine = () => {
 }
 
 export default App;
-  pause: {
-    successDelivered: string;
-    infoSkipped: string;
-    warningFailedPrefix: string;
-    warningFailedFallback: string;
-    errorUnexpected: string;
-  };
-  resume: {
-    successDelivered: string;
-    infoSkipped: string;
-    warningFailedPrefix: string;
-    warningFailedFallback: string;
-    errorUnexpected: string;
-  };
