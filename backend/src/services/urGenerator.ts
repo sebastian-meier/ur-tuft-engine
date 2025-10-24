@@ -176,6 +176,11 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   const travelSpeed = settings.travelSpeedMmPerSec / 1000;
   const displacementMeters = 0.15;
   const dwellSeconds = 5;
+  const effectiveWidthMm = Math.max(0, settings.workpieceWidthMm - 2 * settings.workpieceBufferMm);
+  const effectiveHeightMm = Math.max(0, settings.workpieceHeightMm - 2 * settings.workpieceBufferMm);
+  const centerX = settings.workpieceBufferMm + effectiveWidthMm / 2;
+  const centerY = settings.workpieceBufferMm + effectiveHeightMm / 2;
+  const safeZ = settings.safeHeightMm / 1000;
 
   const programLines: string[] = [];
   programLines.push(`def tuft_tool_test_program():`);
@@ -183,18 +188,21 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tufting gun test")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
-  programLines.push('    local start_pose = current_pose');
+  programLines.push(`    new_pose = ${formatPose(settings.coordinateFrameVariable, centerX, centerY, safeZ)}`);
   programLines.push(
-    `    local test_pose = pose_trans(start_pose, p[0, 0, -${displacementMeters.toFixed(4)}, 0, 0, 0])`,
+    `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(
-    `    movel(p[test_pose[0], test_pose[1], test_pose[2], start_pose[3], start_pose[4], start_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+    `    local test_pose = pose_trans(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], p[0, 0, -${displacementMeters.toFixed(4)}, 0, 0, 0])`,
+  );
+  programLines.push(
+    `    movel(test_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(`    set_digital_out(${settings.toolOutput}, True)`);
   programLines.push(`    sleep(${dwellSeconds.toFixed(1)})`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(
-    `    movel(start_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+    `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(`    textmsg("Tufting gun test finished")`);
   programLines.push(`end`);

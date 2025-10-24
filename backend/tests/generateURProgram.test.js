@@ -59,9 +59,12 @@ const EXPECTED_METADATA = {
     const { program, metadata } = (0, urGenerator_1.generateToolTestProgram)({
         toolOutput: 3,
         travelSpeedMmPerSec: 150,
+        workpieceWidthMm: 500,
+        workpieceHeightMm: 400,
+        workpieceBufferMm: 50,
     });
     strict_1.default.ok(program.includes('tuft_tool_test_program'), 'Program should define tuft_tool_test_program');
-    strict_1.default.ok(program.includes('pose_trans(start_pose'), 'Program should compute a relative Z pose');
+    strict_1.default.ok(program.includes('pose_trans(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]]'), 'Program should compute a buffered pose_trans for relative movement');
     strict_1.default.ok(program.includes('sleep(5.0)'), 'Program should dwell for five seconds');
     strict_1.default.strictEqual(metadata.toolOutput, 3);
     strict_1.default.strictEqual(metadata.displacementMeters, 0.15);
