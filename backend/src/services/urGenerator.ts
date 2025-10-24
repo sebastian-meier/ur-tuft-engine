@@ -197,7 +197,7 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
     `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(
-    `    local test_pose_temp = ${formatPoseForFrame(centerX, centerY, safeZ - displacementMeters)}`,
+    `    local test_pose_temp = ${formatPoseForFrame(centerX, centerY, safeZ + displacementMeters)}`,
   );
   programLines.push(
     `    local test_pose = p[test_pose_temp[0], test_pose_temp[1], test_pose_temp[2], current_pose[3], current_pose[4], current_pose[5]]`,
