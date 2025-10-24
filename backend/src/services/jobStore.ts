@@ -56,15 +56,16 @@ export function buildResumeProgram(
     lines.push(`    global progress_total = ${context.movementCount}`);
     lines.push(`    global progress_current = ${startIndex}`);
     lines.push(`    global progress_job_id = "${jobId}"`);
-    lines.push(`    global open=socket_open(progress_host,progress_port)`);
-    lines.push(`    while (open ==  False  ):`);
-    lines.push(`        global open=socket_open(progress_host,progress_port)`);
-    lines.push(`    end`);
     lines.push(`    def report_progress():`);
     lines.push(`        progress_current = progress_current + 1`);
-    lines.push(`        global sendToServer="{jobId:" + progress_job_id + ",current:" + to_str(progress_current) + ",total:" + to_str(progress_total) + "}\n"`);
-    lines.push(`        socket_send_string(sendToServer)`);
-    lines.push(`    end`);
+    lines.push(
+      '        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"',
+    );
+    lines.push('        if socket_open(progress_host, progress_port):');
+    lines.push('            socket_send_string(payload + "\\n")');
+    lines.push('            socket_close()');
+    lines.push('        end');
+    lines.push('    end');
   }
 
   for (let i = startIndex; i < context.movementBlocks.length; i += 1) {
@@ -111,14 +112,15 @@ export function buildSeekProgram(
     lines.push(`    global progress_total = ${context.movementCount}`);
     lines.push(`    global progress_current = ${stepIndex}`);
     lines.push(`    global progress_job_id = "${jobId}"`);
-    lines.push(`    global open=socket_open(progress_host,progress_port)`);
-    lines.push(`    while (open ==  False  ):`);
-    lines.push(`        global open=socket_open(progress_host,progress_port)`);
-    lines.push(`    end`);
     lines.push(`    def report_progress():`);
     lines.push(`        progress_current = progress_current + 1`);
-    lines.push(`        global sendToServer="{jobId:" + progress_job_id + ",current:" + to_str(progress_current) + ",total:" + to_str(progress_total) + "}\n"`);
-    lines.push(`        socket_send_string(sendToServer)`);
+    lines.push(
+      '        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"',
+    );
+    lines.push('        if socket_open(progress_host, progress_port):');
+    lines.push('            socket_send_string(payload + "\\n")');
+    lines.push('            socket_close()');
+    lines.push('        end');
     lines.push(`    end`);
   }
   for (const line of block) {

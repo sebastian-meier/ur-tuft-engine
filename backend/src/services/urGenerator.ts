@@ -671,7 +671,9 @@ export async function generateURProgram(
     if (toolActive === desired) {
       return;
     }
-    programLines.push(`    set_digital_out(${settings.toolOutput}, ${desired ? 'True' : 'False'})`);
+    const command = `    set_digital_out(${settings.toolOutput}, ${desired ? 'True' : 'False'})`;
+    programLines.push(command);
+    movementBlocks.push([command]);
     toolActive = desired;
   };
 
