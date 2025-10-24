@@ -13,6 +13,7 @@ import preflightRouter from './routes/preflight';
 import toolTestRouter from './routes/toolTest';
 import boundingBoxRouter from './routes/boundingBox';
 import progressRouter from './routes/progress';
+import pauseRouter from './routes/pause';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/preflight', preflightRouter);
 app.use('/api/tool-test', toolTestRouter);
 app.use('/api/bounding-box', boundingBoxRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/pause', pauseRouter);
 
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.

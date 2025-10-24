@@ -36,6 +36,8 @@ const translations: Record<Language, {
     emergency: string;
     emergencyConfirm: string;
     emergencyCancel: string;
+    pause: string;
+    pauseRunning: string;
   };
   errors: {
     noFile: string;
@@ -145,6 +147,8 @@ const translations: Record<Language, {
       emergency: 'Emergency Routine',
       emergencyConfirm: 'Confirm & Execute',
       emergencyCancel: 'Cancel',
+      pause: 'Pause & Raise Tool',
+      pauseRunning: 'Pausing…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -223,6 +227,13 @@ const translations: Record<Language, {
       body: 'Please make sure the area around the robot is cleared and nobody is standing near the robot.',
       safetyReminder: 'Make sure all safety guidelines are being followed.',
     },
+    pause: {
+      successDelivered: 'Pause routine delivered to the robot.',
+      infoSkipped: 'Pause routine generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Pause routine generated, but sending to the robot failed:',
+      warningFailedFallback: 'Pause routine generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while attempting to pause the robot.',
+    },
     introduction: {
       heading: 'Introduction',
       start: {
@@ -269,6 +280,8 @@ const translations: Record<Language, {
       emergency: 'Notfallroutine',
       emergencyConfirm: 'Bestätigen & Ausführen',
       emergencyCancel: 'Abbrechen',
+      pause: 'Pause & Werkzeug anheben',
+      pauseRunning: 'Pausiere…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -346,6 +359,13 @@ const translations: Record<Language, {
       title: 'Wichtig',
       body: 'Bitte stelle sicher, dass der Bereich um den Roboter frei ist und niemand neben dem Roboter steht.',
       safetyReminder: 'Stelle sicher, dass alle Sicherheitsrichtlinien eingehalten werden.',
+    },
+    pause: {
+      successDelivered: 'Pausenroutine wurde an den Roboter gesendet.',
+      infoSkipped: 'Pausenroutine generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Pausenroutine generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Pausenroutine generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Pausieren des Roboters.',
     },
     introduction: {
       heading: 'Einführung',
@@ -459,6 +479,8 @@ interface BoundingBoxRoutineResponse {
 
 type BoundingBoxRoutineState = 'idle' | 'running' | 'success' | 'warning' | 'error';
 
+type PauseState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 /**
  * Renders the single-page upload workflow. Image previews are generated via an object URL that is
  * revoked once the component no longer needs it to avoid leaking resources.
@@ -482,6 +504,9 @@ const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 const [emergencyOpen, setEmergencyOpen] = useState(false);
 const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() => Promise<void>)>(null);
 const [jobProgress, setJobProgress] = useState<{ current: number; total: number } | null>(null);
+const [pauseState, setPauseState] = useState<PauseState>('idle');
+const [pauseError, setPauseError] = useState<string | null>(null);
+const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
 
   const t = translations[language];
 
@@ -555,6 +580,9 @@ const [jobProgress, setJobProgress] = useState<{ current: number; total: number 
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
     setJobProgress(null);
+    setPauseState('idle');
+    setPauseError(null);
+    setPauseDeliveryStatus('skipped');
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -623,6 +651,8 @@ const [jobProgress, setJobProgress] = useState<{ current: number; total: number 
       }
       setJobProgress(null);
       setUploadState('error');
+      setPauseState('idle');
+      setPauseError(null);
     }
   };
 
@@ -763,6 +793,47 @@ const handleBoundingBoxRoutine = () => {
     setPendingEmergencyAction(null);
   };
 
+  const handlePause = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executePause);
+  };
+
+  const executePause = async () => {
+    setPauseState('running');
+    setPauseError(null);
+    setPauseDeliveryStatus('skipped');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/pause`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as { robotDelivery: { status: RobotStatus; error?: string } };
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setPauseDeliveryStatus(deliveryStatus);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Pause request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setPauseError(payload.robotDelivery?.error ?? t.pause.warningFailedFallback);
+        setPauseState('warning');
+      } else {
+        setPauseState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setPauseError(error.message);
+      } else {
+        setPauseError(t.pause.errorUnexpected);
+      }
+      setPauseState('error');
+      setPauseDeliveryStatus('failed');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -872,6 +943,14 @@ const handleBoundingBoxRoutine = () => {
             >
               {boundingBoxState === 'running' ? t.actions.boundingBoxRunning : t.actions.boundingBox}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handlePause}
+              disabled={uploadState === 'uploading' || pauseState === 'running'}
+            >
+              {pauseState === 'running' ? t.actions.pauseRunning : t.actions.pause}
+            </button>
           </div>
         </form>
 
@@ -930,6 +1009,18 @@ const handleBoundingBoxRoutine = () => {
         )}
         {boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'skipped' && (
           <p className="message info">{t.boundingBox.infoSkipped}</p>
+        )}
+        {pauseState === 'error' && pauseError && <p className="message error">{pauseError}</p>}
+        {pauseState === 'warning' && (
+          <p className="message warning">
+            {pauseError ? `${t.pause.warningFailedPrefix} ${pauseError}` : t.pause.warningFailedFallback}
+          </p>
+        )}
+        {pauseState === 'success' && pauseDeliveryStatus === 'delivered' && (
+          <p className="message success">{t.pause.successDelivered}</p>
+        )}
+        {pauseState === 'success' && pauseDeliveryStatus === 'skipped' && (
+          <p className="message info">{t.pause.infoSkipped}</p>
         )}
       </section>
 
@@ -1090,3 +1181,10 @@ const handleBoundingBoxRoutine = () => {
 }
 
 export default App;
+  pause: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
