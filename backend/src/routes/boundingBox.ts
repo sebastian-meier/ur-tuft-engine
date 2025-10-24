@@ -53,7 +53,7 @@ const router = Router();
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { minX, maxX, minY, maxY, coordinateFrameVariable } = req.body as BoundingBoxRequestBody;
+    const { minX, maxX, minY, maxY } = req.body as BoundingBoxRequestBody;
 
     if (![minX, maxX, minY, maxY].every(isFiniteNumber) || minX! >= maxX! || minY! >= maxY!) {
       res
@@ -71,8 +71,7 @@ router.post('/', async (req, res, next) => {
 
     const { program, metadata } = generateBoundingBoxRoutine(boundingBox, {
       safeHeightMm: config.toolpath.safeHeightMm,
-      travelSpeedMmPerSec: config.robot.travelSpeedMmPerSec,
-      coordinateFrameVariable,
+      travelSpeedMmPerSec: config.robot.travelSpeedMmPerSec
     });
 
     const jobId = randomUUID();
