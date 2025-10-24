@@ -22,7 +22,8 @@ export const startProgressSocketServer = () => {
         try {
           let rawFixed = "";
           if (raw.indexOf("}") > 0) {
-            rawFixed = JSON.parse(raw.replace(/([a-zA-Z0-9_]+):/g, '"$1":').replace(/([a-zA-Z_]\w*)a/g, '"$1a"'));
+            rawFixed = raw.replace("jobId:", `"jobId":"`).replace(",current", `","current"`).replace("total", `"total"`);
+
           }
           const payload = JSON.parse(rawFixed) as { jobId?: string; current?: number; total?: number };
           if (
@@ -30,6 +31,7 @@ export const startProgressSocketServer = () => {
             Number.isFinite(payload.current) &&
             Number.isFinite(payload.total)
           ) {
+            console.log(payload);
             recordProgress(payload.jobId, Number(payload.current), Number(payload.total));
           }
         } catch (error) {
