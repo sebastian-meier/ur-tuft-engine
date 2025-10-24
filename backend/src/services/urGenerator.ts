@@ -246,8 +246,6 @@ export function generateBoundingBoxRoutine(
   programLines.push(settings.coordinateString);
   programLines.push(settings.poseString);
   programLines.push(`    textmsg("Visiting tufting bounding box corners")`);
-  programLines.push('    current_pose = get_actual_tcp_pose()');
-  programLines.push('    textmsg("current_pose: ", current_pose)');
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
 
   for (const corner of corners) {
@@ -543,8 +541,6 @@ export async function generateURProgram(
   programLines.push(settings.coordinateString);
   programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tufting job ${originalName}")`);
-  programLines.push(`    current_pose = get_actual_tcp_pose()`);
-  programLines.push(`    textmsg("current_pose: ", current_pose)`);
   programLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(`    global travel_speed = ${travelSpeed.toFixed(4)}`);
