@@ -35,8 +35,10 @@ export interface URGenerationOptions {
   coordinateString?: string;
   /** URScript variable of the angle of the tool. */
   poseString?: string;
-  /** Optional HTTP URL invoked by the robot after each move to report progress. */
-  progressCallbackUrl?: string;
+  /** Hostname used by the robot when reporting progress after each move. */
+  progressHost?: string;
+  /** TCP port used by the robot when reporting progress after each move. */
+  progressPort?: number;
 }
 
 /** Structured metadata returned alongside the generated UR program. */
@@ -294,36 +296,26 @@ interface ColumnPlan {
 
 interface ProgressCallbackConfig {
   host: string;
-  hostHeader: string;
   port: number;
-  path: string;
 }
 
-const parseProgressCallbackUrl = (urlString: string | undefined): ProgressCallbackConfig | null => {
-  if (!urlString) {
+const createProgressConfig = (
+  host: string | undefined,
+  port: number | undefined,
+): ProgressCallbackConfig | null => {
+  if (!host) {
     return null;
   }
-
-  try {
-    const url = new URL(urlString);
-    if (url.protocol !== 'http:') {
-      return null;
-    }
-
-    const host = url.hostname.replace(/"/g, '');
-    const port = url.port ? Number(url.port) : 80;
-    const hostHeader = url.port ? `${host}:${url.port}` : host;
-    const path = (url.pathname || '/') + (url.search || '');
-
-    return {
-      host,
-      hostHeader,
-      port,
-      path,
-    };
-  } catch {
+  const trimmedHost = host.trim();
+  if (!trimmedHost) {
     return null;
   }
+  const normalisedHost = trimmedHost.replace(/"/g, '');
+  const normalisedPort = Number.isFinite(port) && port ? Number(port) : DEFAULT_OPTIONS.progressPort;
+  return {
+    host: normalisedHost,
+    port: normalisedPort,
+  };
 };
 
 const escapeStringForUrScript = (value: string): string => value.replace(/"/g, '\\"');
@@ -342,7 +334,8 @@ const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   coordinateFrameVariable: 'tuft_coords',
   coordinateString: '    global tuft_coords = p[-0.743799, 1.270828, -0.183331, 1.574839, 0.004352, -0.002073]',
   poseString: '    global current_pose = p[0,0,0,-1.19353,1.19941,1.24224]',
-  progressCallbackUrl: '',
+  progressHost: '127.0.0.1',
+  progressPort: 4700,
 };
 
 const RAD_ORIENTATION = {
@@ -458,7 +451,7 @@ export async function generateURProgram(
   const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
   const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
     formatPose(coordinateFrameVariable, xMm, yMm, zMeters);
-  const progressConfig = parseProgressCallbackUrl(settings.progressCallbackUrl?.trim());
+  const progressConfig = createProgressConfig(settings.progressHost, settings.progressPort);
 
   if (settings.tuftHeightMm >= settings.safeHeightMm) {
     throw new Error('Tuft height must be smaller than the safe height to allow a retract move.');
@@ -566,13 +559,9 @@ export async function generateURProgram(
   let progressTotalLineIndex: number | null = null;
   if (progressConfig) {
     const escapedHost = escapeStringForUrScript(progressConfig.host);
-    const escapedHostHeader = escapeStringForUrScript(progressConfig.hostHeader);
-    const escapedPath = escapeStringForUrScript(progressConfig.path);
     const escapedJobId = escapeStringForUrScript(jobId);
     programLines.push(`    global progress_host = "${escapedHost}"`);
-    programLines.push(`    global progress_host_header = "${escapedHostHeader}"`);
     programLines.push(`    global progress_port = ${progressConfig.port}`);
-    programLines.push(`    global progress_path = "${escapedPath}"`);
     programLines.push(`    global progress_total = 0`);
     progressTotalLineIndex = programLines.length - 1;
     programLines.push(`    global progress_current = 0`);
@@ -582,15 +571,8 @@ export async function generateURProgram(
     programLines.push(
       `        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"`,
     );
-    programLines.push(`        local content_length = strlen(payload)`);
     programLines.push(`        if socket_open(progress_host, progress_port):`);
-    programLines.push(`            socket_send_string("POST " + progress_path + " HTTP/1.1\\r\\n")`);
-    programLines.push(`            socket_send_string("Host: " + progress_host_header + "\\r\\n")`);
-    programLines.push(`            socket_send_string("Content-Type: application/json\\r\\n")`);
-    programLines.push(
-      `            socket_send_string("Content-Length: " + to_str(content_length) + "\\r\\n\\r\\n")`,
-    );
-    programLines.push(`            socket_send_string(payload)`);
+    programLines.push(`            socket_send_string(payload + "\\n")`);
     programLines.push(`            socket_close()`);
     programLines.push(`        end`);
     programLines.push(`    end`);

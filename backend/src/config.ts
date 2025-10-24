@@ -25,8 +25,10 @@ export interface RobotConfig {
   tuftSpeedMmPerSec: number;
   /** Contact force threshold in Newtons that determines when the tool touched the surface. */
   contactForceThresholdN: number;
-  /** Optional URL invoked by generated URScript to report progress after each move. */
-  progressCallbackUrl: string;
+  /** Hostname used by the robot when reporting progress over a socket connection. */
+  progressHost: string;
+  /** TCP port used by the robot when reporting progress over a socket connection. */
+  progressPort: number;
   /** Additional clearance above the safe height used for calibration moves. */
   calibrationRaiseMm: number;
 }
@@ -82,6 +84,8 @@ const corsOrigins = process.env.CORS_ORIGIN
 
 const robotHost = process.env.ROBOT_HOST;
 const robotPort = parsePort(process.env.ROBOT_PORT, 30002);
+const progressHost = process.env.ROBOT_PROGRESS_HOST?.trim() ?? '127.0.0.1';
+const progressPort = parsePort(process.env.ROBOT_PROGRESS_PORT, 4700);
 
 /**
  * Resolved application configuration, evaluated once at module load so subsequent imports share
@@ -98,7 +102,8 @@ export const config: AppConfig = {
     travelSpeedMmPerSec: Math.max(10, parseNumber(process.env.ROBOT_TRAVEL_SPEED_MM_S, 200)),
     tuftSpeedMmPerSec: Math.max(5, parseNumber(process.env.ROBOT_TUFT_SPEED_MM_S, 60)),
     contactForceThresholdN: Math.max(0.5, parseNumber(process.env.ROBOT_CONTACT_FORCE_THRESHOLD_N, 15)),
-    progressCallbackUrl: process.env.ROBOT_PROGRESS_URL?.trim() ?? '',
+    progressHost,
+    progressPort,
     calibrationRaiseMm: Math.max(0, parseNumber(process.env.ROBOT_CALIBRATION_RAISE_MM, 50)),
   },
   toolpath: {

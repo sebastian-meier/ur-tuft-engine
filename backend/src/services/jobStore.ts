@@ -1,8 +1,6 @@
 interface ProgressConfig {
   host: string;
-  hostHeader: string;
   port: number;
-  path: string;
 }
 
 export interface JobContext {
@@ -54,9 +52,7 @@ export function buildResumeProgram(
 
   if (context.progressConfig) {
     lines.push(`    global progress_host = "${context.progressConfig.host}"`);
-    lines.push(`    global progress_host_header = "${context.progressConfig.hostHeader}"`);
     lines.push(`    global progress_port = ${context.progressConfig.port}`);
-    lines.push(`    global progress_path = "${context.progressConfig.path}"`);
     lines.push(`    global progress_total = ${context.movementCount}`);
     lines.push(`    global progress_current = ${startIndex}`);
     lines.push(`    global progress_job_id = "${jobId}"`);
@@ -65,13 +61,8 @@ export function buildResumeProgram(
     lines.push(
       '        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"',
     );
-    lines.push('        local content_length = strlen(payload)');
     lines.push('        if socket_open(progress_host, progress_port):');
-    lines.push('            socket_send_string("POST " + progress_path + " HTTP/1.1\\r\\n")');
-    lines.push('            socket_send_string("Host: " + progress_host_header + "\\r\\n")');
-    lines.push('            socket_send_string("Content-Type: application/json\\r\\n")');
-    lines.push('            socket_send_string("Content-Length: " + to_str(content_length) + "\\r\\n\\r\\n")');
-    lines.push('            socket_send_string(payload)');
+    lines.push('            socket_send_string(payload + "\\n")');
     lines.push('            socket_close()');
     lines.push('        end');
     lines.push('    end');
@@ -115,8 +106,29 @@ export function buildSeekProgram(
   lines.push(context.poseString);
   lines.push(`    textmsg("Seeking to step ${stepIndex} of job ${jobId}")`);
   lines.push(`    set_digital_out(${context.toolOutput}, False)`);
+  if (context.progressConfig) {
+    lines.push(`    global progress_host = "${context.progressConfig.host}"`);
+    lines.push(`    global progress_port = ${context.progressConfig.port}`);
+    lines.push(`    global progress_total = ${context.movementCount}`);
+    lines.push(`    global progress_current = ${stepIndex}`);
+    lines.push(`    global progress_job_id = "${jobId}"`);
+    lines.push('    def report_progress():');
+    lines.push('        progress_current = progress_current + 1');
+    lines.push(
+      '        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"',
+    );
+    lines.push('        if socket_open(progress_host, progress_port):');
+    lines.push('            socket_send_string(payload + "\\n")');
+    lines.push('            socket_close()');
+    lines.push('        end');
+    lines.push('    end');
+  }
   for (const line of block) {
     lines.push(line);
+  }
+  if (context.progressConfig) {
+    const indent = block[block.length - 1].match(/^(\s*)/)?.[1] ?? '    ';
+    lines.push(`${indent}report_progress()`);
   }
   lines.push('    textmsg("Seek movement finished")');
   lines.push('end');
