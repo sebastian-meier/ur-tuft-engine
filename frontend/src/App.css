@@ -250,6 +250,18 @@ button.secondary {
   color: #3f3f55;
 }
 
+.manual-progress-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.manual-progress-current {
+  font-weight: 600;
+  color: #1f2351;
+}
+
 .manual-progress input {
   padding: 0.5rem;
   border-radius: 6px;

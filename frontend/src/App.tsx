@@ -1782,6 +1782,39 @@ const handleBoundingBoxRoutine = () => {
             <label htmlFor="manual-progress-input">
               {t.metadataLabels.progress} ({jobProgress ? `${jobProgress.total} steps` : '—'})
             </label>
+            <div className="manual-progress-display">
+              <span className="manual-progress-current">
+                {jobProgress ? `${jobProgress.current}/${jobProgress.total}` : '—'}
+              </span>
+              <input
+                id="manual-progress-input"
+                type="number"
+                min={0}
+                max={jobProgress?.total ?? undefined}
+                value={manualProgressInput}
+                onFocus={() => setIsManualEditing(true)}
+                onBlur={() => {
+                  setIsManualEditing(false);
+                  if (!jobProgress) {
+                    return;
+                  }
+                  let value = Number.parseInt(manualProgressInput, 10);
+                  if (Number.isNaN(value)) {
+                    value = jobProgress.current;
+                  }
+                  value = Math.max(0, Math.min(jobProgress.total, value));
+                  setManualProgressInput(String(value));
+                }}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (/^\d*$/.test(value)) {
+                    setManualProgressInput(value);
+                    setManualProgressError(null);
+                  }
+                }}
+                disabled={!result}
+              />
+            </div>
             <input
               id="manual-progress-input"
               type="number"
