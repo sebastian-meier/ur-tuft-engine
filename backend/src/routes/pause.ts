@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { config } from '../config';
 import { sendProgramToRobot } from '../services/robotClient';
+import { markJobPaused } from '../services/progressStore';
 
 const router = Router();
 
-router.post('/', async (_req, res) => {
+router.post('/', async (req, res) => {
+  const { jobId } = req.body ?? {};
+  if (typeof jobId === 'string' && jobId.trim().length > 0) {
+    markJobPaused(jobId.trim());
+  }
+
   const safeZ = (config.toolpath.safeHeightMm / 1000).toFixed(4);
   const travelSpeed = (config.robot.travelSpeedMmPerSec / 1000).toFixed(4);
   const program = `def tuft_pause_program():\n    textmsg("Pausing tufting job")\n    set_digital_out(${config.robot.toolOutput}, False)\n    local current_pose = get_actual_tcp_pose()\n    local target_pose = current_pose\n    target_pose[2] = ${safeZ}\n    movel(target_pose, a=0.8, v=${travelSpeed})\n    textmsg("Pause routine complete")\nend\ntuft_pause_program()`;

@@ -149,6 +149,8 @@ const translations: Record<Language, {
       emergencyCancel: 'Cancel',
       pause: 'Pause & Raise Tool',
       pauseRunning: 'Pausing…',
+      resume: 'Resume Program',
+      resumeRunning: 'Resuming…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -234,6 +236,13 @@ const translations: Record<Language, {
       warningFailedFallback: 'Pause routine generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while attempting to pause the robot.',
     },
+    resume: {
+      successDelivered: 'Resume routine delivered to the robot.',
+      infoSkipped: 'Resume routine generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Resume routine generated, but sending to the robot failed:',
+      warningFailedFallback: 'Resume routine generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while attempting to resume the robot.',
+    },
     introduction: {
       heading: 'Introduction',
       start: {
@@ -282,6 +291,8 @@ const translations: Record<Language, {
       emergencyCancel: 'Abbrechen',
       pause: 'Pause & Werkzeug anheben',
       pauseRunning: 'Pausiere…',
+      resume: 'Programm fortsetzen',
+      resumeRunning: 'Fortsetzen…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -366,6 +377,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Pausenroutine generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Pausenroutine generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler beim Pausieren des Roboters.',
+    },
+    resume: {
+      successDelivered: 'Fortsetzungsroutine wurde an den Roboter gesendet.',
+      infoSkipped: 'Fortsetzungsroutine generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Fortsetzungsroutine generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Fortsetzungsroutine generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Fortsetzen des Roboters.',
     },
     introduction: {
       heading: 'Einführung',
@@ -507,6 +525,9 @@ const [jobProgress, setJobProgress] = useState<{ current: number; total: number 
 const [pauseState, setPauseState] = useState<PauseState>('idle');
 const [pauseError, setPauseError] = useState<string | null>(null);
 const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
+const [resumeState, setResumeState] = useState<PauseState>('idle');
+const [resumeError, setResumeError] = useState<string | null>(null);
+const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('skipped');
 
   const t = translations[language];
 
@@ -583,6 +604,9 @@ const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('ski
     setPauseState('idle');
     setPauseError(null);
     setPauseDeliveryStatus('skipped');
+    setResumeState('idle');
+    setResumeError(null);
+    setResumeDeliveryStatus('skipped');
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -653,6 +677,10 @@ const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('ski
       setUploadState('error');
       setPauseState('idle');
       setPauseError(null);
+      setPauseDeliveryStatus('skipped');
+      setResumeState('idle');
+      setResumeError(null);
+      setResumeDeliveryStatus('skipped');
     }
   };
 
@@ -806,6 +834,10 @@ const handleBoundingBoxRoutine = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/pause`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(result?.jobId ? { jobId: result.jobId } : {}),
       });
 
       const payload = (await response.json()) as { robotDelivery: { status: RobotStatus; error?: string } };
@@ -831,6 +863,66 @@ const handleBoundingBoxRoutine = () => {
       }
       setPauseState('error');
       setPauseDeliveryStatus('failed');
+    }
+  };
+
+  const handleResume = () => {
+    if (!result?.jobId) {
+      setResumeError(t.resume.errorUnexpected);
+      setResumeState('error');
+      return;
+    }
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeResume);
+  };
+
+  const executeResume = async () => {
+    if (!result?.jobId) {
+      setResumeError(t.resume.errorUnexpected);
+      setResumeState('error');
+      return;
+    }
+
+    setResumeState('running');
+    setResumeError(null);
+    setResumeDeliveryStatus('skipped');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: result.jobId }),
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        resumePosition?: number;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setResumeDeliveryStatus(deliveryStatus);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Resume request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setResumeError(payload.robotDelivery?.error ?? t.resume.warningFailedFallback);
+        setResumeState('warning');
+      } else {
+        setResumeState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setResumeError(error.message);
+      } else {
+        setResumeError(t.resume.errorUnexpected);
+      }
+      setResumeDeliveryStatus('failed');
+      setResumeState('error');
     }
   };
 
@@ -951,6 +1043,18 @@ const handleBoundingBoxRoutine = () => {
             >
               {pauseState === 'running' ? t.actions.pauseRunning : t.actions.pause}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleResume}
+              disabled={
+                uploadState === 'uploading' ||
+                resumeState === 'running' ||
+                !result?.jobId
+              }
+            >
+              {resumeState === 'running' ? t.actions.resumeRunning : t.actions.resume}
+            </button>
           </div>
         </form>
 
@@ -1021,6 +1125,18 @@ const handleBoundingBoxRoutine = () => {
         )}
         {pauseState === 'success' && pauseDeliveryStatus === 'skipped' && (
           <p className="message info">{t.pause.infoSkipped}</p>
+        )}
+        {resumeState === 'error' && resumeError && <p className="message error">{resumeError}</p>}
+        {resumeState === 'warning' && (
+          <p className="message warning">
+            {resumeError ? `${t.resume.warningFailedPrefix} ${resumeError}` : t.resume.warningFailedFallback}
+          </p>
+        )}
+        {resumeState === 'success' && resumeDeliveryStatus === 'delivered' && (
+          <p className="message success">{t.resume.successDelivered}</p>
+        )}
+        {resumeState === 'success' && resumeDeliveryStatus === 'skipped' && (
+          <p className="message info">{t.resume.infoSkipped}</p>
         )}
       </section>
 
@@ -1182,6 +1298,13 @@ const handleBoundingBoxRoutine = () => {
 
 export default App;
   pause: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
+  resume: {
     successDelivered: string;
     infoSkipped: string;
     warningFailedPrefix: string;

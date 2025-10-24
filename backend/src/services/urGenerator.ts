@@ -5,6 +5,7 @@
  */
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
+import { saveJobContext } from './jobStore';
 
 /** Options controlling how the image is transformed into a robot toolpath. */
 export interface URGenerationOptions {
@@ -518,6 +519,7 @@ export async function generateURProgram(
     : null;
 
   const programLines: string[] = [];
+  const movementCommands: string[] = [];
   programLines.push(`def tuft_program():`);
   programLines.push(`    textmsg("Starting tufting job ${originalName}")`);
   programLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
@@ -593,6 +595,7 @@ export async function generateURProgram(
   let movementCount = 0;
 
   const emitMove = (line: string) => {
+    movementCommands.push(line);
     programLines.push(line);
     if (progressConfig) {
       const indent = line.match(/^(\s*)/)?.[1] ?? '';
@@ -706,6 +709,8 @@ export async function generateURProgram(
     lastSafeY = homeY;
   }
 
+  movementCount = movementCommands.length;
+
   if (progressTotalLineIndex !== null) {
     programLines[progressTotalLineIndex] = `    global progress_total = ${movementCount}`;
   }
@@ -718,6 +723,25 @@ export async function generateURProgram(
   const tuftTimeSeconds = tuftDistanceMm / settings.tuftSpeedMmPerSec;
   const verticalTimeSeconds = verticalDistanceMm / settings.travelSpeedMmPerSec;
   const estimatedCycleTimeSeconds = Math.round(travelTimeSeconds + tuftTimeSeconds + verticalTimeSeconds);
+
+  saveJobContext(jobId, {
+    jobId,
+    movementCommands: [...movementCommands],
+    coordinateFrameVariable,
+    progressConfig: progressConfig
+      ? {
+          host: escapeStringForUrScript(progressConfig.host),
+          hostHeader: escapeStringForUrScript(progressConfig.hostHeader),
+          port: progressConfig.port,
+          path: escapeStringForUrScript(progressConfig.path),
+        }
+      : null,
+    movementCount,
+    safeZ,
+    travelSpeed,
+    tuftSpeed,
+    toolOutput: settings.toolOutput,
+  });
 
   return {
     program: programLines.join('\n'),

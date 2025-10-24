@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getProgress, recordProgress } from '../services/progressStore';
+import { getProgress, getResumePosition, recordProgress } from '../services/progressStore';
 
 const router = Router();
 
@@ -35,6 +35,12 @@ router.get('/:jobId', (req, res) => {
   }
 
   res.json(entry);
+});
+
+router.get('/:jobId/resume-position', (req, res) => {
+  const { jobId } = req.params;
+  const position = getResumePosition(jobId);
+  res.json({ jobId, position });
 });
 
 export default router;
