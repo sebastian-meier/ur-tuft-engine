@@ -567,15 +567,14 @@ export async function generateURProgram(
     progressTotalLineIndex = programLines.length - 1;
     programLines.push(`    global progress_current = 0`);
     programLines.push(`    global progress_job_id = "${escapedJobId}"`);
+    programLines.push(`    global open=socket_open(progress_host,progress_port)`);
+    programLines.push(`    while (open ==  False  ):`);
+    programLines.push(`        global open=socket_open(progress_host,progress_port)`);
+    programLines.push(`    end`);
     programLines.push(`    def report_progress():`);
     programLines.push(`        progress_current = progress_current + 1`);
-    programLines.push(
-      `        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"`,
-    );
-    programLines.push(`        if socket_open(progress_host, progress_port):`);
-    programLines.push(`            socket_send_string(payload + "\\n")`);
-    programLines.push(`            socket_close()`);
-    programLines.push(`        end`);
+    programLines.push(`        global sendToServer="{jobId:" + progress_job_id + ",current:" + to_str(progress_current) + ",total:" + to_str(progress_total) + "}\n"`);
+    programLines.push(`        socket_send_string(sendToServer)`);
     programLines.push(`    end`);
   }
 
