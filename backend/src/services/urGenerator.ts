@@ -467,6 +467,7 @@ export async function generateURProgram(
 
   // STEP 1: Decode the uploaded bitmap into a greyscale buffer we can index per pixel.
   const { data, info } = await sharp(imageBuffer)
+    .flip()
     .greyscale()
     .raw()
     .toBuffer({ resolveWithObject: true });

@@ -12,7 +12,7 @@ def tuft_program():
     global progress_port = 4700
     global progress_total = 1505
     global progress_current = 0
-    global progress_job_id = "99d7f437-68eb-4bc1-b0e3-060f00f36451"
+    global progress_job_id = "6961e9a3-894f-41f1-906c-7845ee2e7b0e"
     def report_progress():
         progress_current = progress_current + 1
         local payload = "{\"jobId\":\"" + progress_job_id + "\",\"current\":" + to_str(progress_current) + ",\"total\":" + to_str(progress_total) + "}"
@@ -203,18 +203,18 @@ def tuft_program():
     new_pose = pose_trans(tuft_coords, p[0.4088, 0.6566, 0.1500, 0, 0, 0])
     movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=0.8, v=0.2000)
     report_progress()
-    new_pose = pose_trans(tuft_coords, p[0.4107, 0.3894, 0.1500, 0, 0, 0])
+    new_pose = pose_trans(tuft_coords, p[0.4107, 0.3874, 0.1500, 0, 0, 0])
     movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=1.2, v=0.2000)
     report_progress()
-    new_pose = pose_trans(tuft_coords, p[0.4107, 0.3894, 0.1520, 0, 0, 0])
+    new_pose = pose_trans(tuft_coords, p[0.4107, 0.3874, 0.1520, 0, 0, 0])
     movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=0.8, v=0.2000)
     report_progress()
     set_digital_out(0, True)
-    new_pose = pose_trans(tuft_coords, p[0.4107, 0.6626, 0.1520, 0, 0, 0])
+    new_pose = pose_trans(tuft_coords, p[0.4107, 0.6606, 0.1520, 0, 0, 0])
     movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=1.2, v=0.0600)
     report_progress()
     set_digital_out(0, False)
-    new_pose = pose_trans(tuft_coords, p[0.4107, 0.6626, 0.1500, 0, 0, 0])
+    new_pose = pose_trans(tuft_coords, p[0.4107, 0.6606, 0.1500, 0, 0, 0])
     movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=0.8, v=0.2000)
     report_progress()
     new_pose = pose_trans(tuft_coords, p[0.4126, 0.3835, 0.1500, 0, 0, 0])
