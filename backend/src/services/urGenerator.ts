@@ -139,8 +139,6 @@ export function generatePreflightProgram(options: URGenerationOptions = {}): Pre
   programLines.push(settings.coordinateString);
   programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tuft preflight routine")`);
-  programLines.push(`    current_poser = get_actual_tcp_pose()`);
-  programLines.push(`    textmsg("current_pose: ", current_poser)`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(
     ...createPreflightMoveLines({
