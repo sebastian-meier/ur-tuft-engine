@@ -56,6 +56,7 @@ const translations: Record<Language, {
     tuftSegments: string;
     activePixels: string;
     robotDelivery: string;
+    progress: string;
   };
   robotDeliveryStatus: Record<RobotStatus, string>;
   preflight: {
@@ -164,6 +165,7 @@ const translations: Record<Language, {
       tuftSegments: 'Tuft Segments',
       activePixels: 'Active Pixels',
       robotDelivery: 'Robot Delivery',
+      progress: 'Progress',
     },
     robotDeliveryStatus: {
       delivered: 'delivered',
@@ -287,6 +289,7 @@ const translations: Record<Language, {
       tuftSegments: 'Tuft-Segmente',
       activePixels: 'Aktive Pixel',
       robotDelivery: 'Roboteruebertragung',
+      progress: 'Fortschritt',
     },
     robotDeliveryStatus: {
       delivered: 'erfolgreich',
@@ -478,6 +481,7 @@ const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineRes
 const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 const [emergencyOpen, setEmergencyOpen] = useState(false);
 const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() => Promise<void>)>(null);
+const [jobProgress, setJobProgress] = useState<{ current: number; total: number } | null>(null);
 
   const t = translations[language];
 
@@ -499,6 +503,38 @@ const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() 
     };
   }, [selectedFile]);
 
+  useEffect(() => {
+    if (!result?.jobId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/progress/${result.jobId}`);
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as { current: number; total: number };
+        if (!cancelled) {
+          setJobProgress({ current: payload.current, total: payload.total });
+        }
+      } catch {
+        // Ignore polling errors; they will be retried on the next interval.
+      }
+    };
+
+    fetchProgress();
+    const intervalId = window.setInterval(fetchProgress, 2000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [result?.jobId]);
+
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(language === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: 1 }),
     [language],
@@ -518,6 +554,7 @@ const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() 
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
+    setJobProgress(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -572,6 +609,11 @@ const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() 
       }
 
       setResult(payload);
+      if (payload.metadata.movementCount > 0) {
+        setJobProgress({ current: 0, total: payload.metadata.movementCount });
+      } else {
+        setJobProgress(null);
+      }
       setUploadState(response.status === 202 ? 'warning' : 'success');
     } catch (error) {
       if (error instanceof Error && error.message.trim().length > 0) {
@@ -579,6 +621,7 @@ const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() 
       } else {
         setErrorState({ key: 'unexpected' });
       }
+      setJobProgress(null);
       setUploadState('error');
     }
   };
@@ -912,6 +955,10 @@ const handleBoundingBoxRoutine = () => {
             </li>
             <li>
               <strong>{t.metadataLabels.activePixels}:</strong> {result.metadata.activePixels}
+            </li>
+            <li>
+              <strong>{t.metadataLabels.progress}:</strong>{' '}
+              {jobProgress ? `${jobProgress.current}/${jobProgress.total}` : result.metadata.movementCount > 0 ? `0/${result.metadata.movementCount}` : '—'}
             </li>
             <li>
               <strong>{t.metadataLabels.robotDelivery}:</strong> {t.robotDeliveryStatus[result.robotDelivery.status]}

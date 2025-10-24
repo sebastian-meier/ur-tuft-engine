@@ -12,6 +12,7 @@ import uploadRouter from './routes/upload';
 import preflightRouter from './routes/preflight';
 import toolTestRouter from './routes/toolTest';
 import boundingBoxRouter from './routes/boundingBox';
+import progressRouter from './routes/progress';
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/images', uploadRouter);
 app.use('/api/preflight', preflightRouter);
 app.use('/api/tool-test', toolTestRouter);
 app.use('/api/bounding-box', boundingBoxRouter);
+app.use('/api/progress', progressRouter);
 
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.

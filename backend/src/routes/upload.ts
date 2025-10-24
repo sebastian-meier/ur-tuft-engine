@@ -77,6 +77,7 @@ router.post('/', upload.single('image'), async (req, res, next) => {
       travelSpeedMmPerSec: config.robot.travelSpeedMmPerSec,
       tuftSpeedMmPerSec: config.robot.tuftSpeedMmPerSec,
       contactForceThresholdN: config.robot.contactForceThresholdN,
+      progressCallbackUrl: config.robot.progressCallbackUrl,
     });
 
     const robotDelivery = {

@@ -28,6 +28,8 @@ export interface URGenerationOptions {
   contactForceThresholdN?: number;
   /** URScript variable name referencing the coordinate frame applied to generated poses. */
   coordinateFrameVariable?: string;
+  /** Optional HTTP URL invoked by the robot after each move to report progress. */
+  progressCallbackUrl?: string;
 }
 
 /** Structured metadata returned alongside the generated UR program. */
@@ -52,6 +54,8 @@ export interface URGenerationResult {
     activePixels: number;
     /** Bounding box in millimetres covering all black pixels, or `null` when no black pixels were found. */
     boundingBoxMm: BoundingBoxMm | null;
+    /** Total number of planned `movel` commands emitted for the tufting job. */
+    movementCount: number;
   };
 }
 
@@ -261,6 +265,42 @@ interface ColumnPlan {
   segments: ColumnSegment[];
 }
 
+interface ProgressCallbackConfig {
+  host: string;
+  hostHeader: string;
+  port: number;
+  path: string;
+}
+
+const parseProgressCallbackUrl = (urlString: string | undefined): ProgressCallbackConfig | null => {
+  if (!urlString) {
+    return null;
+  }
+
+  try {
+    const url = new URL(urlString);
+    if (url.protocol !== 'http:') {
+      return null;
+    }
+
+    const host = url.hostname.replace(/"/g, '');
+    const port = url.port ? Number(url.port) : 80;
+    const hostHeader = url.port ? `${host}:${url.port}` : host;
+    const path = (url.pathname || '/') + (url.search || '');
+
+    return {
+      host,
+      hostHeader,
+      port,
+      path,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const escapeStringForUrScript = (value: string): string => value.replace(/"/g, '\\"');
+
 const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   workpieceWidthMm: 500,
   workpieceHeightMm: 500,
@@ -272,6 +312,7 @@ const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
   blackPixelThreshold: 64,
   contactForceThresholdN: 15,
   coordinateFrameVariable: 'tuftCoord',
+  progressCallbackUrl: '',
 };
 
 const RAD_ORIENTATION = {
@@ -382,9 +423,11 @@ export async function generateURProgram(
   options: URGenerationOptions = {},
 ): Promise<URGenerationResult> {
   const settings: Required<URGenerationOptions> = { ...DEFAULT_OPTIONS, ...options };
+  const jobId = randomUUID();
   const coordinateFrameVariable = resolveCoordinateFrameVariable(settings.coordinateFrameVariable);
   const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
     formatPose(coordinateFrameVariable, xMm, yMm, zMeters);
+  const progressConfig = parseProgressCallbackUrl(settings.progressCallbackUrl?.trim());
 
   if (settings.tuftHeightMm >= settings.safeHeightMm) {
     throw new Error('Tuft height must be smaller than the safe height to allow a retract move.');
@@ -484,6 +527,39 @@ export async function generateURProgram(
   programLines.push(`    global contact_force_threshold = ${contactForceThreshold.toFixed(2)}`);
   programLines.push(`    global contact_probe_step = ${contactStepMeters.toFixed(4)}`);
 
+  let progressTotalLineIndex: number | null = null;
+  if (progressConfig) {
+    const escapedHost = escapeStringForUrScript(progressConfig.host);
+    const escapedHostHeader = escapeStringForUrScript(progressConfig.hostHeader);
+    const escapedPath = escapeStringForUrScript(progressConfig.path);
+    const escapedJobId = escapeStringForUrScript(jobId);
+    programLines.push(`    global progress_host = "${escapedHost}"`);
+    programLines.push(`    global progress_host_header = "${escapedHostHeader}"`);
+    programLines.push(`    global progress_port = ${progressConfig.port}`);
+    programLines.push(`    global progress_path = "${escapedPath}"`);
+    programLines.push(`    global progress_total = 0`);
+    progressTotalLineIndex = programLines.length - 1;
+    programLines.push(`    global progress_current = 0`);
+    programLines.push(`    global progress_job_id = "${escapedJobId}"`);
+    programLines.push(`    def report_progress():`);
+    programLines.push(`        progress_current = progress_current + 1`);
+    programLines.push(
+      `        local payload = "{\\"jobId\\":\\"" + progress_job_id + "\\",\\"current\\":" + to_str(progress_current) + ",\\"total\\":" + to_str(progress_total) + "}"`,
+    );
+    programLines.push(`        local content_length = strlen(payload)`);
+    programLines.push(`        if socket_open(progress_host, progress_port):`);
+    programLines.push(`            socket_send_string("POST " + progress_path + " HTTP/1.1\\r\\n")`);
+    programLines.push(`            socket_send_string("Host: " + progress_host_header + "\\r\\n")`);
+    programLines.push(`            socket_send_string("Content-Type: application/json\\r\\n")`);
+    programLines.push(
+      `            socket_send_string("Content-Length: " + to_str(content_length) + "\\r\\n\\r\\n")`,
+    );
+    programLines.push(`            socket_send_string(payload)`);
+    programLines.push(`            socket_close()`);
+    programLines.push(`        end`);
+    programLines.push(`    end`);
+  }
+
   if (tuftSegments === 0) {
     programLines.push(`    textmsg("No dark pixels detected; nothing to tuft.")`);
     programLines.push(`end`);
@@ -498,6 +574,7 @@ export async function generateURProgram(
         tuftSegments,
         activePixels,
         boundingBoxMm,
+        movementCount: 0,
       },
     };
   }
@@ -513,6 +590,16 @@ export async function generateURProgram(
   let travelDistanceMm = 0;
   let tuftDistanceMm = 0;
   let verticalDistanceMm = 0;
+  let movementCount = 0;
+
+  const emitMove = (line: string) => {
+    programLines.push(line);
+    if (progressConfig) {
+      const indent = line.match(/^(\s*)/)?.[1] ?? '';
+      programLines.push(`${indent}report_progress()`);
+    }
+    movementCount += 1;
+  };
 
   // Helper functions keep command emission readable while maintaining motion metrics.
   const moveSafe = (xMm: number, yMm: number) => {
@@ -520,7 +607,7 @@ export async function generateURProgram(
       const travel = distance2D(lastSafeX, lastSafeY, xMm, yMm);
       travelDistanceMm += travel;
     }
-    programLines.push(
+    emitMove(
       `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSafeX = xMm;
@@ -541,7 +628,7 @@ export async function generateURProgram(
     );
     programLines.push('    end');
     programLines.push(`    if contact_pose[2] > ${surfaceZ.toFixed(4)}:`);
-    programLines.push(
+    emitMove(
       `        movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     programLines.push('    end');
@@ -554,7 +641,7 @@ export async function generateURProgram(
       const tuftTravel = distance2D(lastSurfaceX, lastSurfaceY, xMm, yMm);
       tuftDistanceMm += tuftTravel;
     }
-    programLines.push(
+    emitMove(
       `    movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${moveAcceleration.toFixed(1)}, v=${tuftSpeed.toFixed(4)})`,
     );
     lastSurfaceX = xMm;
@@ -563,7 +650,7 @@ export async function generateURProgram(
 
   const retractToSafe = (xMm: number, yMm: number) => {
     verticalDistanceMm += settings.tuftHeightMm;
-    programLines.push(
+    emitMove(
       `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSurfaceX = null;
@@ -612,11 +699,15 @@ export async function generateURProgram(
     const homeX = 0;
     const homeY = 0;
     travelDistanceMm += distance2D(lastSafeX, lastSafeY, homeX, homeY);
-    programLines.push(
+    emitMove(
       `    movel(${formatPoseForFrame(homeX, homeY, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
     );
     lastSafeX = homeX;
     lastSafeY = homeY;
+  }
+
+  if (progressTotalLineIndex !== null) {
+    programLines[progressTotalLineIndex] = `    global progress_total = ${movementCount}`;
   }
 
   ensureToolState(false);
@@ -630,7 +721,7 @@ export async function generateURProgram(
 
   return {
     program: programLines.join('\n'),
-    jobId: randomUUID(),
+    jobId,
     metadata: {
       estimatedCycleTimeSeconds,
       resolution: `${width}x${height}`,
@@ -639,6 +730,7 @@ export async function generateURProgram(
       tuftSegments,
       activePixels,
       boundingBoxMm,
+      movementCount,
     },
   };
 }

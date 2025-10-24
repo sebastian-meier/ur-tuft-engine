@@ -39,6 +39,7 @@ const EXPECTED_METADATA = {
         strict_1.default.ok(minX < maxX, 'Bounding box minX should be smaller than maxX');
         strict_1.default.ok(minY < maxY, 'Bounding box minY should be smaller than maxY');
     }
+    strict_1.default.ok(result.metadata.movementCount > 0, 'Movement count should be tracked for progress reporting');
     strict_1.default.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
     const stats = await node_fs_1.promises.stat(OUTPUT_PATH);
     strict_1.default.ok(stats.size > 0, 'Generated URScript output must not be empty');

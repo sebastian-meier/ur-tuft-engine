@@ -44,6 +44,7 @@ test('generateURProgram emits expected metadata and program for test fixture', a
     assert.ok(minX < maxX, 'Bounding box minX should be smaller than maxX');
     assert.ok(minY < maxY, 'Bounding box minY should be smaller than maxY');
   }
+  assert.ok(result.metadata.movementCount > 0, 'Movement count should be tracked for progress reporting');
 
   assert.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
   assert.ok(
