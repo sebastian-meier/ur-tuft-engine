@@ -702,16 +702,6 @@ export async function generateURProgram(
     }
   }
 
-  // STEP 4: Return to home and summarise motion for cycle times.
-  if (lastSafeX !== null && lastSafeY !== null) {
-    const homeX = 0;
-    const homeY = 0;
-    travelDistanceMm += distance2D(lastSafeX, lastSafeY, homeX, homeY);
-    emitMove('    ', homeX, homeY, safeZ, moveAcceleration, travelSpeed);
-    lastSafeX = homeX;
-    lastSafeY = homeY;
-  }
-
   movementCount = movementBlocks.length;
 
   if (progressTotalLineIndex !== null) {
