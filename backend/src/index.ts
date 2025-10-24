@@ -59,6 +59,10 @@ app.use('/api/progress', progressRouter);
 app.use('/api/pause', pauseRouter);
 app.use('/api/resume', resumeRouter);
 
+app.get('/api/debug', (_req, res) => {
+  res.json({ message: 'hello world' });
+});
+
 /**
  * Express error-handling middleware that normalizes thrown values into JSON responses.
  */
