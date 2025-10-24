@@ -47,8 +47,6 @@ export function buildResumeProgram(
   lines.push(context.coordinateString);
   lines.push(context.poseString);
   lines.push(`    textmsg("Resuming tufting job ${jobId}")`);
-  lines.push('    current_pose = get_actual_tcp_pose()');
-  lines.push('    textmsg("current_pose: ", current_pose)');
   lines.push(`    set_digital_out(${context.toolOutput}, False)`);
   lines.push(`    global travel_speed = ${(context.travelSpeed).toFixed(4)}`);
   lines.push(`    global tuft_speed = ${(context.tuftSpeed).toFixed(4)}`);

@@ -1572,6 +1572,18 @@ const handleBoundingBoxRoutine = () => {
         {homeState === 'success' && homeDeliveryStatus === 'skipped' && (
           <p className="message info">{t.home.infoSkipped}</p>
         )}
+        {seekState === 'error' && seekError && <p className="message error">{seekError}</p>}
+        {seekState === 'warning' && (
+          <p className="message warning">
+            {seekError ? `${t.seek.warningFailedPrefix} ${seekError}` : t.seek.warningFailedFallback}
+          </p>
+        )}
+        {seekState === 'success' && seekDeliveryStatus === 'delivered' && (
+          <p className="message success">{t.seek.successDelivered}</p>
+        )}
+        {seekState === 'success' && seekDeliveryStatus === 'skipped' && (
+          <p className="message info">{t.seek.infoSkipped}</p>
+        )}
       </section>
 
       {result && (

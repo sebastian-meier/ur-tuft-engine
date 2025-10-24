@@ -179,14 +179,16 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
 
   const programLines: string[] = [];
   programLines.push(`def tuft_tool_test_program():`);
+  programLines.push(settings.coordinateString);
+  programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tufting gun test")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
-  programLines.push(`    local start_pose = get_actual_tcp_pose()`);
+  programLines.push('    local start_pose = current_pose');
   programLines.push(
     `    local test_pose = pose_trans(start_pose, p[0, 0, -${displacementMeters.toFixed(4)}, 0, 0, 0])`,
   );
   programLines.push(
-    `    movel(test_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+    `    movel(p[test_pose[0], test_pose[1], test_pose[2], start_pose[3], start_pose[4], start_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(`    set_digital_out(${settings.toolOutput}, True)`);
   programLines.push(`    sleep(${dwellSeconds.toFixed(1)})`);
@@ -646,7 +648,10 @@ export async function generateURProgram(
 
   const lowerToSurface = (xMm: number, yMm: number) => {
     verticalDistanceMm += settings.tuftHeightMm;
-    programLines.push('    local contact_pose = get_actual_tcp_pose()');
+    programLines.push(`    local contact_pose_temp = ${formatPoseForFrame(xMm, yMm, safeZ)}`);
+    programLines.push(
+      '    local contact_pose = p[contact_pose_temp[0], contact_pose_temp[1], contact_pose_temp[2], current_pose[3], current_pose[4], current_pose[5]]',
+    );
     programLines.push(
       `    while norm(get_tcp_force()) < contact_force_threshold and contact_pose[2] > ${surfaceZ.toFixed(4)}:`,
     );
