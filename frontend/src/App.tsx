@@ -809,18 +809,21 @@ const [isManualEditing, setIsManualEditing] = useState(false);
   if (uploadState === 'error' && currentErrorMessage) {
     statusMessages.push({ variant: 'error', text: currentErrorMessage });
   }
-  if (uploadState === 'warning' && result?.robotDelivery.status === 'failed') {
+  const uploadDeliveryStatus: RobotStatus = result ? startDeliveryStatus : 'skipped';
+  const uploadDeliveryError = startError;
+
+  if (uploadState === 'warning' && uploadDeliveryStatus === 'failed') {
     statusMessages.push({
       variant: 'warning',
-      text: result.robotDelivery.error
-        ? `${t.messages.warningFailedPrefix} ${result.robotDelivery.error}`
+      text: uploadDeliveryError
+        ? `${t.messages.warningFailedPrefix} ${uploadDeliveryError}`
         : t.messages.warningFailedFallback,
     });
   }
-  if (uploadState === 'success' && result?.robotDelivery.status === 'delivered') {
+  if (uploadState === 'success' && uploadDeliveryStatus === 'delivered') {
     statusMessages.push({ variant: 'success', text: t.messages.successDelivered });
   }
-  if (uploadState === 'success' && result?.robotDelivery.status === 'skipped') {
+  if (uploadState === 'success' && uploadDeliveryStatus === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.messages.infoSkipped });
   }
   if (preflightState === 'error' && preflightError) {
