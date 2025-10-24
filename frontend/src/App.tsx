@@ -1046,8 +1046,7 @@ const handleBoundingBoxRoutine = () => {
               onClick={handleBoundingBoxRoutine}
               disabled={
                 uploadState === 'uploading' ||
-                boundingBoxState === 'running' ||
-                !result?.metadata.boundingBoxMm
+                boundingBoxState === 'running'
               }
             >
               {boundingBoxState === 'running' ? t.actions.boundingBoxRunning : t.actions.boundingBox}
