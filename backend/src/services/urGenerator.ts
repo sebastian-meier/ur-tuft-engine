@@ -458,7 +458,7 @@ export async function generateURProgram(
   }
 
   const safeZ = settings.safeHeightMm / 1000;
-  const surfaceZ = Math.max(0, (settings.safeHeightMm - settings.tuftHeightMm) / 1000);
+  const surfaceZ = settings.tuftHeightMm / 1000;
   const travelSpeed = settings.travelSpeedMmPerSec / 1000;
   const tuftSpeed = settings.tuftSpeedMmPerSec / 1000;
   const threshold = Math.min(255, Math.max(0, settings.blackPixelThreshold));
