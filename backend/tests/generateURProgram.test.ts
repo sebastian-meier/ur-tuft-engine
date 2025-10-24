@@ -14,7 +14,7 @@ const FIXTURE_PATH = path.resolve(__dirname, '../../tests/test-1.jpg');
 const OUTPUT_DIR = path.resolve(__dirname, '../../tests/output');
 const OUTPUT_PATH = path.join(OUTPUT_DIR, 'test-1.urscript');
 const EXPECTED_METADATA = {
-  estimatedCycleTimeSeconds: 2513,
+  estimatedCycleTimeSeconds: 2015,
   resolution: '720x480',
   imageWidth: 720,
   imageHeight: 480,

@@ -474,8 +474,10 @@ export async function generateURProgram(
     throw new Error('Expected a single greyscale channel after preprocessing.');
   }
 
-  const pixelWidthMm = settings.workpieceWidthMm / width;
-  const pixelHeightMm = settings.workpieceHeightMm / height;
+  const effectiveWidthMm = Math.max(0, settings.workpieceWidthMm - 2 * settings.workpieceBufferMm);
+  const effectiveHeightMm = Math.max(0, settings.workpieceHeightMm - 2 * settings.workpieceBufferMm);
+  const pixelWidthMm = width > 0 ? effectiveWidthMm / width : 0;
+  const pixelHeightMm = height > 0 ? effectiveHeightMm / height : 0;
 
   // STEP 2: Group consecutive black pixels column-by-column into tuft segments.
   const columnPlans: ColumnPlan[] = [];
@@ -526,10 +528,10 @@ export async function generateURProgram(
   const hasActivePixels = activePixels > 0 && Number.isFinite(minColumn);
   const boundingBoxMm = hasActivePixels
     ? {
-        minX: minColumn * pixelWidthMm,
-        maxX: (maxColumn + 1) * pixelWidthMm,
-        minY: minRow * pixelHeightMm,
-        maxY: (maxRow + 1) * pixelHeightMm,
+        minX: settings.workpieceBufferMm + minColumn * pixelWidthMm,
+        maxX: settings.workpieceBufferMm + (maxColumn + 1) * pixelWidthMm,
+        minY: settings.workpieceBufferMm + minRow * pixelHeightMm,
+        maxY: settings.workpieceBufferMm + (maxRow + 1) * pixelHeightMm,
       }
     : null;
 
@@ -692,17 +694,17 @@ export async function generateURProgram(
   // STEP 3: Emit moves for each tuft segment, toggling the tool output around each stroke.
   const firstColumn = columnPlans[0];
   const firstSegment = firstColumn.segments[0];
-  const initialX = (firstColumn.column + 0.5) * pixelWidthMm;
-  const initialY = (firstSegment.start + 0.5) * pixelHeightMm;
+  const initialX = settings.workpieceBufferMm + (firstColumn.column + 0.5) * pixelWidthMm;
+  const initialY = settings.workpieceBufferMm + (firstSegment.start + 0.5) * pixelHeightMm;
 
   moveSafe(initialX, initialY);
 
   for (const plan of columnPlans) {
-    const columnX = (plan.column + 0.5) * pixelWidthMm;
+    const columnX = settings.workpieceBufferMm + (plan.column + 0.5) * pixelWidthMm;
 
     for (const segment of plan.segments) {
-      const startY = (segment.start + 0.5) * pixelHeightMm;
-      const endY = (segment.end + 0.5) * pixelHeightMm;
+      const startY = settings.workpieceBufferMm + (segment.start + 0.5) * pixelHeightMm;
+      const endY = settings.workpieceBufferMm + (segment.end + 0.5) * pixelHeightMm;
 
       if (lastSafeX !== columnX || lastSafeY !== startY) {
         moveSafe(columnX, startY);

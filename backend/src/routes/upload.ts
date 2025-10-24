@@ -70,6 +70,7 @@ router.post('/', upload.single('image'), async (req, res, next) => {
     const { jobId, metadata, program } = await generateURProgram(req.file.buffer, req.file.originalname, {
       workpieceWidthMm: config.toolpath.workpieceWidthMm,
       workpieceHeightMm: config.toolpath.workpieceHeightMm,
+      workpieceBufferMm: config.toolpath.workpieceBufferMm,
       safeHeightMm: config.toolpath.safeHeightMm,
       tuftHeightMm: config.toolpath.tuftHeightMm,
       blackPixelThreshold: config.toolpath.blackPixelThreshold,
