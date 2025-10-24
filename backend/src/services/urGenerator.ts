@@ -661,23 +661,7 @@ export async function generateURProgram(
 
   const lowerToSurface = (xMm: number, yMm: number) => {
     verticalDistanceMm += settings.tuftHeightMm;
-    programLines.push(`    local contact_pose_temp = ${formatPoseForFrame(xMm, yMm, safeZ)}`);
-    programLines.push(
-      '    local contact_pose = p[contact_pose_temp[0], contact_pose_temp[1], contact_pose_temp[2], current_pose[3], current_pose[4], current_pose[5]]',
-    );
-    programLines.push(
-      `    while norm(get_tcp_force()) < contact_force_threshold and contact_pose[2] > ${surfaceZ.toFixed(4)}:`,
-    );
-    programLines.push(
-      `        contact_pose := pose_trans(contact_pose, p[0, 0, -contact_probe_step, 0, 0, 0])`,
-    );
-    programLines.push(
-      `        movel(contact_pose, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-    );
-    programLines.push('    end');
-    programLines.push(`    if contact_pose[2] > ${surfaceZ.toFixed(4)}:`);
-    emitMove('        ', xMm, yMm, surfaceZ, approachAcceleration, travelSpeed);
-    programLines.push('    end');
+    emitMove('    ', xMm, yMm, surfaceZ, approachAcceleration, travelSpeed);
     lastSurfaceX = xMm;
     lastSurfaceY = yMm;
   };

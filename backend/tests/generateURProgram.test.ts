@@ -47,10 +47,6 @@ test('generateURProgram emits expected metadata and program for test fixture', a
   assert.ok(result.metadata.movementCount > 0, 'Movement count should be tracked for progress reporting');
 
   assert.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
-  assert.ok(
-    result.program.includes('contact_force_threshold'),
-    'Program should declare a contact force threshold for surface probing',
-  );
 
   const stats = await fs.stat(OUTPUT_PATH);
   assert.ok(stats.size > 0, 'Generated URScript output must not be empty');
