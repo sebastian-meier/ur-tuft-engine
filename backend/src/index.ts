@@ -15,6 +15,7 @@ import boundingBoxRouter from './routes/boundingBox';
 import progressRouter from './routes/progress';
 import pauseRouter from './routes/pause';
 import resumeRouter from './routes/resume';
+import calibrateRouter from './routes/calibrate';
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/bounding-box', boundingBoxRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/pause', pauseRouter);
 app.use('/api/resume', resumeRouter);
+app.use('/api/calibrate', calibrateRouter);
 
 app.get('/api/debug', (_req, res) => {
   res.json({ message: 'hello world' });

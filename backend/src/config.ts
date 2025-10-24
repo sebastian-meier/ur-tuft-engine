@@ -27,6 +27,8 @@ export interface RobotConfig {
   contactForceThresholdN: number;
   /** Optional URL invoked by generated URScript to report progress after each move. */
   progressCallbackUrl: string;
+  /** Additional clearance above the safe height used for calibration moves. */
+  calibrationRaiseMm: number;
 }
 
 /**
@@ -97,6 +99,7 @@ export const config: AppConfig = {
     tuftSpeedMmPerSec: Math.max(5, parseNumber(process.env.ROBOT_TUFT_SPEED_MM_S, 60)),
     contactForceThresholdN: Math.max(0.5, parseNumber(process.env.ROBOT_CONTACT_FORCE_THRESHOLD_N, 15)),
     progressCallbackUrl: process.env.ROBOT_PROGRESS_URL?.trim() ?? '',
+    calibrationRaiseMm: Math.max(0, parseNumber(process.env.ROBOT_CALIBRATION_RAISE_MM, 50)),
   },
   toolpath: {
     workpieceWidthMm: Math.max(1, parseNumber(process.env.WORKPIECE_WIDTH_MM, 500)),

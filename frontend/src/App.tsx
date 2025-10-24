@@ -40,6 +40,8 @@ const translations: Record<Language, {
     pauseRunning: string;
     resume: string;
     resumeRunning: string;
+    calibrate: string;
+    calibrateRunning: string;
   };
   errors: {
     noFile: string;
@@ -128,6 +130,13 @@ const translations: Record<Language, {
     warningFailedFallback: string;
     errorUnexpected: string;
   };
+  calibrate: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   introduction: {
     heading: string;
     start: {
@@ -167,6 +176,8 @@ const translations: Record<Language, {
       pauseRunning: 'Pausing…',
       resume: 'Resume Program',
       resumeRunning: 'Resuming…',
+      calibrate: 'Calibrate Z-Max',
+      calibrateRunning: 'Calibrating…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -259,6 +270,13 @@ const translations: Record<Language, {
       warningFailedFallback: 'Resume routine generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while attempting to resume the robot.',
     },
+    calibrate: {
+      successDelivered: 'Calibration raise delivered to the robot.',
+      infoSkipped: 'Calibration raise generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Calibration raise generated, but sending to the robot failed:',
+      warningFailedFallback: 'Calibration raise generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while attempting the calibration raise.',
+    },
     introduction: {
       heading: 'Introduction',
       start: {
@@ -309,6 +327,8 @@ const translations: Record<Language, {
       pauseRunning: 'Pausiere…',
       resume: 'Programm fortsetzen',
       resumeRunning: 'Fortsetzen…',
+      calibrate: 'Kalibrierung Z-Max',
+      calibrateRunning: 'Kalibriere…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -400,6 +420,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Fortsetzungsroutine generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Fortsetzungsroutine generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler beim Fortsetzen des Roboters.',
+    },
+    calibrate: {
+      successDelivered: 'Kalibrierungsfahrt wurde an den Roboter gesendet.',
+      infoSkipped: 'Kalibrierungsfahrt generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Kalibrierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Kalibrierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler bei der Kalibrierungsfahrt.',
     },
     introduction: {
       heading: 'Einführung',
@@ -547,6 +574,10 @@ const [resumeState, setResumeState] = useState<PauseState>('idle');
 const [resumeError, setResumeError] = useState<string | null>(null);
 const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('skipped');
 const [resumeProgram, setResumeProgram] = useState<string | null>(null);
+const [calibrationState, setCalibrationState] = useState<PauseState>('idle');
+const [calibrationError, setCalibrationError] = useState<string | null>(null);
+const [calibrationDeliveryStatus, setCalibrationDeliveryStatus] = useState<RobotStatus>('skipped');
+const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -619,6 +650,10 @@ const [resumeProgram, setResumeProgram] = useState<string | null>(null);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
+    setCalibrationState('idle');
+    setCalibrationError(null);
+    setCalibrationDeliveryStatus('skipped');
+    setCalibrationProgram(null);
     setJobProgress(null);
     setPauseState('idle');
     setPauseError(null);
@@ -628,6 +663,10 @@ const [resumeProgram, setResumeProgram] = useState<string | null>(null);
     setResumeError(null);
     setResumeDeliveryStatus('skipped');
     setResumeProgram(null);
+    setCalibrationState('idle');
+    setCalibrationError(null);
+    setCalibrationDeliveryStatus('skipped');
+    setCalibrationProgram(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -704,6 +743,10 @@ const [resumeProgram, setResumeProgram] = useState<string | null>(null);
       setResumeError(null);
       setResumeDeliveryStatus('skipped');
       setResumeProgram(null);
+      setCalibrationState('idle');
+      setCalibrationError(null);
+      setCalibrationDeliveryStatus('skipped');
+      setCalibrationProgram(null);
     }
   };
 
@@ -954,6 +997,53 @@ const handleBoundingBoxRoutine = () => {
     }
   };
 
+  const handleCalibrate = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeCalibrate);
+  };
+
+  const executeCalibrate = async () => {
+    setCalibrationState('running');
+    setCalibrationError(null);
+    setCalibrationDeliveryStatus('skipped');
+    setCalibrationProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/calibrate`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setCalibrationDeliveryStatus(deliveryStatus);
+      setCalibrationProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Calibration request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setCalibrationError(payload.robotDelivery?.error ?? t.calibrate.warningFailedFallback);
+        setCalibrationState('warning');
+      } else {
+        setCalibrationState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setCalibrationError(error.message);
+      } else {
+        setCalibrationError(t.calibrate.errorUnexpected);
+      }
+      setCalibrationDeliveryStatus('failed');
+      setCalibrationState('error');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -1082,6 +1172,14 @@ const handleBoundingBoxRoutine = () => {
             >
               {resumeState === 'running' ? t.actions.resumeRunning : t.actions.resume}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleCalibrate}
+              disabled={uploadState === 'uploading' || calibrationState === 'running'}
+            >
+              {calibrationState === 'running' ? t.actions.calibrateRunning : t.actions.calibrate}
+            </button>
           </div>
         </form>
 
@@ -1164,6 +1262,18 @@ const handleBoundingBoxRoutine = () => {
         )}
         {resumeState === 'success' && resumeDeliveryStatus === 'skipped' && (
           <p className="message info">{t.resume.infoSkipped}</p>
+        )}
+        {calibrationState === 'error' && calibrationError && <p className="message error">{calibrationError}</p>}
+        {calibrationState === 'warning' && (
+          <p className="message warning">
+            {calibrationError ? `${t.calibrate.warningFailedPrefix} ${calibrationError}` : t.calibrate.warningFailedFallback}
+          </p>
+        )}
+        {calibrationState === 'success' && calibrationDeliveryStatus === 'delivered' && (
+          <p className="message success">{t.calibrate.successDelivered}</p>
+        )}
+        {calibrationState === 'success' && calibrationDeliveryStatus === 'skipped' && (
+          <p className="message info">{t.calibrate.infoSkipped}</p>
         )}
       </section>
 
@@ -1312,6 +1422,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.resume}</h2>
           <textarea className="program-output" value={resumeProgram} readOnly rows={8} />
+        </section>
+      )}
+      {calibrationProgram && (
+        <section className="panel">
+          <h2>{t.actions.calibrate}</h2>
+          <textarea className="program-output" value={calibrationProgram} readOnly rows={8} />
         </section>
       )}
       {emergencyOpen && (
