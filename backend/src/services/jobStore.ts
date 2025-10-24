@@ -95,3 +95,33 @@ export function buildResumeProgram(
 
   return lines.join('\n');
 }
+
+export function buildSeekProgram(
+  jobId: string,
+  context: JobContext,
+  stepIndex: number,
+): string | null {
+  if (stepIndex < 0 || stepIndex >= context.movementBlocks.length) {
+    return null;
+  }
+
+  const block = context.movementBlocks[stepIndex];
+  if (!block || block.length === 0) {
+    return null;
+  }
+
+  const lines: string[] = [];
+  lines.push('def tuft_seek_program():');
+  lines.push(context.coordinateString);
+  lines.push(context.poseString);
+  lines.push(`    textmsg("Seeking to step ${stepIndex} of job ${jobId}")`);
+  lines.push(`    set_digital_out(${context.toolOutput}, False)`);
+  for (const line of block) {
+    lines.push(line);
+  }
+  lines.push('    textmsg("Seek movement finished")');
+  lines.push('end');
+  lines.push('tuft_seek_program()');
+
+  return lines.join('\n');
+}

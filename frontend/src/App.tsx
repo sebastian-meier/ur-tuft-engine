@@ -44,6 +44,10 @@ const translations: Record<Language, {
     calibrateRunning: string;
     home: string;
     homeRunning: string;
+    progressApply: string;
+    progressApplyRunning: string;
+    seek: string;
+    seekRunning: string;
   };
   errors: {
     noFile: string;
@@ -146,6 +150,13 @@ const translations: Record<Language, {
     warningFailedFallback: string;
     errorUnexpected: string;
   };
+  seek: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   introduction: {
     heading: string;
     start: {
@@ -189,6 +200,10 @@ const translations: Record<Language, {
       calibrateRunning: 'Calibrating…',
       home: 'Home to Center',
       homeRunning: 'Moving to center…',
+      progressApply: 'Update Progress',
+      progressApplyRunning: 'Updating progress…',
+      seek: 'Move to Step',
+      seekRunning: 'Moving to step…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -295,6 +310,13 @@ const translations: Record<Language, {
       warningFailedFallback: 'Home-to-center routine generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while moving to the buffered center.',
     },
+    seek: {
+      successDelivered: 'Seek routine delivered to the robot.',
+      infoSkipped: 'Seek routine generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Seek routine generated, but sending to the robot failed:',
+      warningFailedFallback: 'Seek routine generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while moving to the selected step.',
+    },
     introduction: {
       heading: 'Introduction',
       start: {
@@ -349,6 +371,10 @@ const translations: Record<Language, {
       calibrateRunning: 'Kalibriere…',
       home: 'Zum Zentrum fahren',
       homeRunning: 'Fahre zum Zentrum…',
+      progressApply: 'Fortschritt aktualisieren',
+      progressApplyRunning: 'Aktualisiere Fortschritt…',
+      seek: 'Zu Schritt fahren',
+      seekRunning: 'Fahre zu Schritt…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -454,6 +480,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Zentrums.',
+    },
+    seek: {
+      successDelivered: 'Positionierungsfahrt wurde an den Roboter gesendet.',
+      infoSkipped: 'Positionierungsfahrt generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Positionierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Positionierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Anfahren des gewählten Schritts.',
     },
     introduction: {
       heading: 'Einführung',
@@ -609,6 +642,14 @@ const [homeState, setHomeState] = useState<PauseState>('idle');
 const [homeError, setHomeError] = useState<string | null>(null);
 const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
 const [homeProgram, setHomeProgram] = useState<string | null>(null);
+const [seekState, setSeekState] = useState<PauseState>('idle');
+const [seekError, setSeekError] = useState<string | null>(null);
+const [seekDeliveryStatus, setSeekDeliveryStatus] = useState<RobotStatus>('skipped');
+const [seekProgram, setSeekProgram] = useState<string | null>(null);
+const [manualProgressInput, setManualProgressInput] = useState('');
+const [manualProgressApplying, setManualProgressApplying] = useState(false);
+const [manualProgressError, setManualProgressError] = useState<string | null>(null);
+const [isManualEditing, setIsManualEditing] = useState(false);
 
   const t = translations[language];
 
@@ -662,6 +703,18 @@ const [homeProgram, setHomeProgram] = useState<string | null>(null);
     };
   }, [result?.jobId]);
 
+  useEffect(() => {
+    if (!jobProgress) {
+      if (!isManualEditing) {
+        setManualProgressInput('');
+      }
+      return;
+    }
+    if (!isManualEditing) {
+      setManualProgressInput(String(jobProgress.current));
+    }
+  }, [jobProgress, isManualEditing]);
+
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(language === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: 1 }),
     [language],
@@ -702,6 +755,14 @@ const [homeProgram, setHomeProgram] = useState<string | null>(null);
     setHomeError(null);
     setHomeDeliveryStatus('skipped');
     setHomeProgram(null);
+    setSeekState('idle');
+    setSeekError(null);
+    setSeekDeliveryStatus('skipped');
+    setSeekProgram(null);
+    setManualProgressInput('');
+    setManualProgressApplying(false);
+    setManualProgressError(null);
+    setIsManualEditing(false);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -1130,6 +1191,139 @@ const handleBoundingBoxRoutine = () => {
     }
   };
 
+  const overrideProgressOnServer = async (value: number) => {
+    if (!result?.jobId) {
+      throw new Error('No job loaded');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/progress/${result.jobId}/override`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ current: value }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({ error: 'Unable to override progress.' }))) as
+        | { error?: string }
+        | undefined;
+      throw new Error(payload?.error ?? 'Unable to override progress.');
+    }
+
+    const entry = (await response.json()) as { current: number; total: number };
+    setJobProgress({ current: entry.current, total: entry.total });
+    setManualProgressInput(String(entry.current));
+    setManualProgressError(null);
+    return entry;
+  };
+
+  const applyManualProgress = async () => {
+    if (!result?.jobId) {
+      setManualProgressError('No job loaded.');
+      return;
+    }
+
+    const value = Number.parseInt(manualProgressInput, 10);
+    if (Number.isNaN(value)) {
+      setManualProgressError('Enter a valid step number.');
+      return;
+    }
+
+    if (jobProgress && value > jobProgress.total) {
+      setManualProgressError(`Step must be between 0 and ${jobProgress.total}.`);
+      return;
+    }
+
+    setManualProgressApplying(true);
+    try {
+      await overrideProgressOnServer(value);
+    } catch (error) {
+      setManualProgressError(error instanceof Error ? error.message : 'Unable to update progress.');
+    } finally {
+      setManualProgressApplying(false);
+    }
+  };
+
+  const handleSeek = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeSeek);
+  };
+
+  const executeSeek = async () => {
+    if (!result?.jobId) {
+      setSeekError('No job loaded.');
+      setSeekState('error');
+      return;
+    }
+
+    const value = Number.parseInt(manualProgressInput, 10);
+    if (Number.isNaN(value)) {
+      setSeekError('Enter a valid step number.');
+      setSeekState('error');
+      return;
+    }
+
+    if (jobProgress && value > jobProgress.total) {
+      setSeekError(`Step must be between 0 and ${jobProgress.total}.`);
+      setSeekState('error');
+      return;
+    }
+
+    setSeekState('running');
+    setSeekError(null);
+    setSeekDeliveryStatus('skipped');
+    setSeekProgram(null);
+
+    try {
+      await overrideProgressOnServer(value);
+
+      const response = await fetch(`${API_BASE_URL}/api/seek`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: result.jobId, targetStep: value }),
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string | null;
+        progress?: { current: number; total: number } | null;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setSeekDeliveryStatus(deliveryStatus);
+      setSeekProgram(payload.program ?? null);
+      if (payload.progress) {
+        setJobProgress({ current: payload.progress.current, total: payload.progress.total });
+        if (!isManualEditing) {
+          setManualProgressInput(String(payload.progress.current));
+        }
+      }
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Seek request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setSeekError(payload.robotDelivery?.error ?? t.seek.warningFailedFallback);
+        setSeekState('warning');
+      } else {
+        setSeekState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setSeekError(error.message);
+      } else {
+        setSeekError(t.seek.errorUnexpected);
+      }
+      setSeekDeliveryStatus('failed');
+      setSeekState('error');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -1423,6 +1617,68 @@ const handleBoundingBoxRoutine = () => {
               </li>
             )}
           </ul>
+          <div className="manual-progress">
+            <label htmlFor="manual-progress-input">
+              {t.metadataLabels.progress} ({jobProgress ? `${jobProgress.total} steps` : '—'})
+            </label>
+            <input
+              id="manual-progress-input"
+              type="number"
+              min={0}
+              max={jobProgress?.total ?? undefined}
+              value={manualProgressInput}
+              onFocus={() => setIsManualEditing(true)}
+              onBlur={() => {
+                setIsManualEditing(false);
+                if (!jobProgress) {
+                  return;
+                }
+                let value = Number.parseInt(manualProgressInput, 10);
+                if (Number.isNaN(value)) {
+                  value = jobProgress.current;
+                }
+                value = Math.max(0, Math.min(jobProgress.total, value));
+                setManualProgressInput(String(value));
+              }}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (/^\d*$/.test(value)) {
+                  setManualProgressInput(value);
+                  setManualProgressError(null);
+                }
+              }}
+              disabled={!result}
+            />
+            <div className="manual-progress-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={applyManualProgress}
+                disabled={
+                  manualProgressApplying ||
+                  uploadState === 'uploading' ||
+                  !result?.jobId ||
+                  manualProgressInput.trim().length === 0
+                }
+              >
+                {manualProgressApplying ? t.actions.progressApplyRunning : t.actions.progressApply}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleSeek}
+                disabled={
+                  seekState === 'running' ||
+                  uploadState === 'uploading' ||
+                  !result?.jobId ||
+                  manualProgressInput.trim().length === 0
+                }
+              >
+                {seekState === 'running' ? t.actions.seekRunning : t.actions.seek}
+              </button>
+            </div>
+            {manualProgressError && <p className="message error">{manualProgressError}</p>}
+          </div>
           <textarea className="program-output" value={result.program} readOnly rows={16} />
         </section>
       )}
@@ -1540,6 +1796,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.home}</h2>
           <textarea className="program-output" value={homeProgram} readOnly rows={8} />
+        </section>
+      )}
+      {seekProgram && (
+        <section className="panel">
+          <h2>{t.actions.seek}</h2>
+          <textarea className="program-output" value={seekProgram} readOnly rows={8} />
         </section>
       )}
       {emergencyOpen && (

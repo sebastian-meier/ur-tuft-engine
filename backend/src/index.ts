@@ -17,6 +17,7 @@ import pauseRouter from './routes/pause';
 import resumeRouter from './routes/resume';
 import calibrateRouter from './routes/calibrate';
 import homeRouter from './routes/home';
+import seekRouter from './routes/seek';
 
 const app = express();
 
@@ -62,6 +63,7 @@ app.use('/api/pause', pauseRouter);
 app.use('/api/resume', resumeRouter);
 app.use('/api/calibrate', calibrateRouter);
 app.use('/api/home', homeRouter);
+app.use('/api/seek', seekRouter);
 
 app.get('/api/debug', (_req, res) => {
   res.json({ message: 'hello world' });

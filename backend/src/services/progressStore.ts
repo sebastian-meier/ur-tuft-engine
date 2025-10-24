@@ -54,3 +54,20 @@ export function resumeJob(jobId: string): void {
   }
   progressMap.set(jobId, { ...entry, paused: false });
 }
+
+export function overrideProgress(jobId: string, current: number): JobProgress | null {
+  const entry = progressMap.get(jobId);
+  if (!entry) {
+    return null;
+  }
+  const normalisedCurrent = Math.max(0, Math.min(current, entry.total));
+  const updated: JobProgressDetail = {
+    ...entry,
+    current: normalisedCurrent,
+    lastScriptPosition: normalisedCurrent,
+    updatedAt: new Date().toISOString(),
+  };
+  progressMap.set(jobId, updated);
+  const { paused, lastScriptPosition, ...rest } = updated;
+  return rest;
+}
