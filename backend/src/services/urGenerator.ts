@@ -243,15 +243,20 @@ export function generateBoundingBoxRoutine(
 
   const programLines: string[] = [];
   programLines.push(`def tuft_bounding_box_program():`);
+  programLines.push(settings.coordinateString);
+  programLines.push(settings.poseString);
   programLines.push(`    textmsg("Visiting tufting bounding box corners")`);
-  programLines.push(
-    ...corners.map(
-      (corner) =>
-        `    movel(${formatPoseForFrame(corner.x, corner.y, safeZ)}, a=${moveAcceleration.toFixed(
-          1,
-        )}, v=${travelSpeed.toFixed(4)})`,
-    ),
-  );
+  programLines.push('    current_pose = get_actual_tcp_pose()');
+  programLines.push('    textmsg("current_pose: ", current_pose)');
+  programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
+
+  for (const corner of corners) {
+    programLines.push(`    new_pose = ${formatPoseForFrame(corner.x, corner.y, safeZ)}`);
+    programLines.push(
+      `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+    );
+  }
+
   programLines.push(`    textmsg("Bounding box traversal finished")`);
   programLines.push(`end`);
   programLines.push(`tuft_bounding_box_program()`);
@@ -533,17 +538,19 @@ export async function generateURProgram(
     : null;
 
   const programLines: string[] = [];
-  const movementCommands: string[] = [];
+  const movementBlocks: string[][] = [];
   programLines.push(`def tuft_program():`);
+  programLines.push(settings.coordinateString);
+  programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tufting job ${originalName}")`);
+  programLines.push(`    current_pose = get_actual_tcp_pose()`);
+  programLines.push(`    textmsg("current_pose: ", current_pose)`);
   programLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
   programLines.push(`    global travel_speed = ${travelSpeed.toFixed(4)}`);
   programLines.push(`    global tuft_speed = ${tuftSpeed.toFixed(4)}`);
   programLines.push(`    global contact_force_threshold = ${contactForceThreshold.toFixed(2)}`);
   programLines.push(`    global contact_probe_step = ${contactStepMeters.toFixed(4)}`);
-  programLines.push(settings.coordinateString);
-  programLines.push(settings.poseString);
 
   let progressTotalLineIndex: number | null = null;
   if (progressConfig) {
@@ -610,11 +617,21 @@ export async function generateURProgram(
   let verticalDistanceMm = 0;
   let movementCount = 0;
 
-  const emitMove = (line: string) => {
-    movementCommands.push(line);
-    programLines.push(line);
+  const emitMove = (
+    indent: string,
+    xMm: number,
+    yMm: number,
+    zMeters: number,
+    acceleration: number,
+    speed: number,
+  ) => {
+    const poseExpression = formatPoseForFrame(xMm, yMm, zMeters);
+    const poseLine = `${indent}new_pose = ${poseExpression}`;
+    const moveLine = `${indent}movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${acceleration.toFixed(1)}, v=${speed.toFixed(4)})`;
+    movementBlocks.push([poseLine, moveLine]);
+    programLines.push(poseLine);
+    programLines.push(moveLine);
     if (progressConfig) {
-      const indent = line.match(/^(\s*)/)?.[1] ?? '';
       programLines.push(`${indent}report_progress()`);
     }
     movementCount += 1;
@@ -626,9 +643,7 @@ export async function generateURProgram(
       const travel = distance2D(lastSafeX, lastSafeY, xMm, yMm);
       travelDistanceMm += travel;
     }
-    emitMove(
-      `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-    );
+    emitMove('    ', xMm, yMm, safeZ, moveAcceleration, travelSpeed);
     lastSafeX = xMm;
     lastSafeY = yMm;
   };
@@ -647,9 +662,7 @@ export async function generateURProgram(
     );
     programLines.push('    end');
     programLines.push(`    if contact_pose[2] > ${surfaceZ.toFixed(4)}:`);
-    emitMove(
-      `        movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-    );
+    emitMove('        ', xMm, yMm, surfaceZ, approachAcceleration, travelSpeed);
     programLines.push('    end');
     lastSurfaceX = xMm;
     lastSurfaceY = yMm;
@@ -660,18 +673,14 @@ export async function generateURProgram(
       const tuftTravel = distance2D(lastSurfaceX, lastSurfaceY, xMm, yMm);
       tuftDistanceMm += tuftTravel;
     }
-    emitMove(
-      `    movel(${formatPoseForFrame(xMm, yMm, surfaceZ)}, a=${moveAcceleration.toFixed(1)}, v=${tuftSpeed.toFixed(4)})`,
-    );
+    emitMove('    ', xMm, yMm, surfaceZ, moveAcceleration, tuftSpeed);
     lastSurfaceX = xMm;
     lastSurfaceY = yMm;
   };
 
   const retractToSafe = (xMm: number, yMm: number) => {
     verticalDistanceMm += settings.tuftHeightMm;
-    emitMove(
-      `    movel(${formatPoseForFrame(xMm, yMm, safeZ)}, a=${approachAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-    );
+    emitMove('    ', xMm, yMm, safeZ, approachAcceleration, travelSpeed);
     lastSurfaceX = null;
     lastSurfaceY = null;
     lastSafeX = xMm;
@@ -718,14 +727,12 @@ export async function generateURProgram(
     const homeX = 0;
     const homeY = 0;
     travelDistanceMm += distance2D(lastSafeX, lastSafeY, homeX, homeY);
-    emitMove(
-      `    movel(${formatPoseForFrame(homeX, homeY, safeZ)}, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-    );
+    emitMove('    ', homeX, homeY, safeZ, moveAcceleration, travelSpeed);
     lastSafeX = homeX;
     lastSafeY = homeY;
   }
 
-  movementCount = movementCommands.length;
+  movementCount = movementBlocks.length;
 
   if (progressTotalLineIndex !== null) {
     programLines[progressTotalLineIndex] = `    global progress_total = ${movementCount}`;
@@ -742,21 +749,16 @@ export async function generateURProgram(
 
   saveJobContext(jobId, {
     jobId,
-    movementCommands: [...movementCommands],
+    movementBlocks: movementBlocks.map((block) => [...block]),
     coordinateFrameVariable,
-    progressConfig: progressConfig
-      ? {
-          host: escapeStringForUrScript(progressConfig.host),
-          hostHeader: escapeStringForUrScript(progressConfig.hostHeader),
-          port: progressConfig.port,
-          path: escapeStringForUrScript(progressConfig.path),
-        }
-      : null,
+    progressConfig,
     movementCount,
     safeZ,
     travelSpeed,
     tuftSpeed,
     toolOutput: settings.toolOutput,
+    coordinateString: settings.coordinateString,
+    poseString: settings.poseString,
   });
 
   return {
