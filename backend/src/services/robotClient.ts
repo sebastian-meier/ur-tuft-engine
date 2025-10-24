@@ -28,6 +28,8 @@ export async function sendProgramToRobot(program: string): Promise<void> {
 
     client.on('close', () => resolve());
 
+    console.log("attempting send:", program.split(`\n`)[0]);
+
     client.connect(config.robot.port, config.robot.host, () => {
       client.write(`${program}\n`, 'utf8', (writeError) => {
         if (writeError) {
