@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "echo \"Linting not configured\"",
-    "preview": "vite preview --open --port 4173",
+    "preview": "vite preview --open --port 4173 --host 127.0.0.1",
     "docs": "typedoc --options typedoc.json"
   },
   "dependencies": {
