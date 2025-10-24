@@ -17,6 +17,7 @@ export interface JobContext {
   toolOutput: number;
   coordinateString: string;
   poseString: string;
+  program: string;
 }
 
 const jobContexts = new Map<string, JobContext>();

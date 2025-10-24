@@ -176,13 +176,13 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   const travelSpeed = settings.travelSpeedMmPerSec / 1000;
   const displacementMeters = 0.15;
   const dwellSeconds = 5;
+  const formatPoseForFrame = (xMm: number, yMm: number, zMeters: number) =>
+    formatPose(settings.coordinateFrameVariable, xMm, yMm, zMeters);
   const effectiveWidthMm = Math.max(0, settings.workpieceWidthMm - 2 * settings.workpieceBufferMm);
   const effectiveHeightMm = Math.max(0, settings.workpieceHeightMm - 2 * settings.workpieceBufferMm);
   const centerX = settings.workpieceBufferMm + effectiveWidthMm / 2;
   const centerY = settings.workpieceBufferMm + effectiveHeightMm / 2;
   const safeZ = settings.safeHeightMm / 1000;
-
-  console.log(centerX, centerY, safeZ, effectiveHeightMm, effectiveWidthMm, settings);
 
   const programLines: string[] = [];
   programLines.push(`def tuft_tool_test_program():`);
@@ -190,9 +190,18 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   programLines.push(settings.poseString);
   programLines.push(`    textmsg("Starting tufting gun test")`);
   programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
-  programLines.push(`    new_pose = ${formatPose(settings.coordinateFrameVariable, centerX, centerY, safeZ)}`);
+  programLines.push(`    new_pose = ${formatPoseForFrame(centerX, centerY, safeZ)}`);
   programLines.push(
     `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
+  );
+  programLines.push(
+    `    local test_pose_temp = ${formatPoseForFrame(centerX, centerY, safeZ - displacementMeters)}`,
+  );
+  programLines.push(
+    `    local test_pose = p[test_pose_temp[0], test_pose_temp[1], test_pose_temp[2], current_pose[3], current_pose[4], current_pose[5]]`,
+  );
+  programLines.push(
+    `    movel(test_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(`    set_digital_out(${settings.toolOutput}, True)`);
   programLines.push(`    sleep(${dwellSeconds.toFixed(1)})`);
@@ -752,6 +761,8 @@ export async function generateURProgram(
   const verticalTimeSeconds = verticalDistanceMm / settings.travelSpeedMmPerSec;
   const estimatedCycleTimeSeconds = Math.round(travelTimeSeconds + tuftTimeSeconds + verticalTimeSeconds);
 
+  const fullProgram = programLines.join('\n');
+
   saveJobContext(jobId, {
     jobId,
     movementBlocks: movementBlocks.map((block) => [...block]),
@@ -764,10 +775,11 @@ export async function generateURProgram(
     toolOutput: settings.toolOutput,
     coordinateString: settings.coordinateString,
     poseString: settings.poseString,
+    program: fullProgram,
   });
 
   return {
-    program: programLines.join('\n'),
+    program: fullProgram,
     jobId,
     metadata: {
       estimatedCycleTimeSeconds,

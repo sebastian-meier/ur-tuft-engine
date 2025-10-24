@@ -36,6 +36,8 @@ const translations: Record<Language, {
     emergency: string;
     emergencyConfirm: string;
     emergencyCancel: string;
+    start: string;
+    startRunning: string;
     pause: string;
     pauseRunning: string;
     resume: string;
@@ -122,6 +124,13 @@ const translations: Record<Language, {
     body: string;
     safetyReminder: string;
   };
+  start: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   pause: {
     successDelivered: string;
     infoSkipped: string;
@@ -192,6 +201,8 @@ const translations: Record<Language, {
       emergency: 'Emergency Routine',
       emergencyConfirm: 'Confirm & Execute',
       emergencyCancel: 'Cancel',
+      start: 'Start Job',
+      startRunning: 'Starting…',
       pause: 'Pause & Raise Tool',
       pauseRunning: 'Pausing…',
       resume: 'Resume Program',
@@ -277,12 +288,19 @@ const translations: Record<Language, {
         bounds: 'Bounding Box',
       },
     },
-    emergencyModal: {
-      title: 'Important',
-      body: 'Please make sure the area around the robot is cleared and nobody is standing near the robot.',
-      safetyReminder: 'Make sure all safety guidelines are being followed.',
-    },
-    pause: {
+  emergencyModal: {
+    title: 'Important',
+    body: 'Please make sure the area around the robot is cleared and nobody is standing near the robot.',
+    safetyReminder: 'Make sure all safety guidelines are being followed.',
+  },
+  start: {
+    successDelivered: 'Program delivered to the robot.',
+    infoSkipped: 'Program generated; configure a robot host to send it automatically.',
+    warningFailedPrefix: 'Program generated, but sending to the robot failed:',
+    warningFailedFallback: 'Program generated, but sending to the robot failed.',
+    errorUnexpected: 'Unexpected error while starting the job.',
+  },
+  pause: {
       successDelivered: 'Pause routine delivered to the robot.',
       infoSkipped: 'Pause routine generated; configure a robot host to execute automatically.',
       warningFailedPrefix: 'Pause routine generated, but sending to the robot failed:',
@@ -363,6 +381,8 @@ const translations: Record<Language, {
       emergency: 'Notfallroutine',
       emergencyConfirm: 'Bestätigen & Ausführen',
       emergencyCancel: 'Abbrechen',
+      start: 'Programm starten',
+      startRunning: 'Starte…',
       pause: 'Pause & Werkzeug anheben',
       pauseRunning: 'Pausiere…',
       resume: 'Programm fortsetzen',
@@ -448,11 +468,18 @@ const translations: Record<Language, {
         bounds: 'Begrenzungsfläche',
       },
     },
-    emergencyModal: {
-      title: 'Wichtig',
-      body: 'Bitte stelle sicher, dass der Bereich um den Roboter frei ist und niemand neben dem Roboter steht.',
-      safetyReminder: 'Stelle sicher, dass alle Sicherheitsrichtlinien eingehalten werden.',
-    },
+  emergencyModal: {
+    title: 'Wichtig',
+    body: 'Bitte stelle sicher, dass der Bereich um den Roboter frei ist und niemand neben dem Roboter steht.',
+    safetyReminder: 'Stelle sicher, dass alle Sicherheitsrichtlinien eingehalten werden.',
+  },
+  start: {
+    successDelivered: 'Programm an den Roboter übertragen.',
+    infoSkipped: 'Programm generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+    warningFailedPrefix: 'Programm generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+    warningFailedFallback: 'Programm generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+    errorUnexpected: 'Unerwarteter Fehler beim Starten des Programms.',
+  },
     pause: {
       successDelivered: 'Pausenroutine wurde an den Roboter gesendet.',
       infoSkipped: 'Pausenroutine generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
@@ -540,11 +567,6 @@ interface UploadResponse {
     movementCount: number;
   };
   program: string;
-  robotDelivery: {
-    attempted: boolean;
-    status: RobotStatus;
-    error?: string;
-  };
 }
 
 interface PreflightResponse {
@@ -630,6 +652,10 @@ const [pauseState, setPauseState] = useState<PauseState>('idle');
 const [pauseError, setPauseError] = useState<string | null>(null);
 const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
 const [pauseProgram, setPauseProgram] = useState<string | null>(null);
+const [startState, setStartState] = useState<PauseState>('idle');
+const [startError, setStartError] = useState<string | null>(null);
+const [startDeliveryStatus, setStartDeliveryStatus] = useState<RobotStatus>('skipped');
+const [startProgram, setStartProgram] = useState<string | null>(null);
 const [resumeState, setResumeState] = useState<PauseState>('idle');
 const [resumeError, setResumeError] = useState<string | null>(null);
 const [resumeDeliveryStatus, setResumeDeliveryStatus] = useState<RobotStatus>('skipped');
@@ -734,10 +760,10 @@ const [isManualEditing, setIsManualEditing] = useState(false);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
-    setCalibrationState('idle');
-    setCalibrationError(null);
-    setCalibrationDeliveryStatus('skipped');
-    setCalibrationProgram(null);
+    setStartState('idle');
+    setStartError(null);
+    setStartDeliveryStatus('skipped');
+    setStartProgram(null);
     setJobProgress(null);
     setPauseState('idle');
     setPauseError(null);
@@ -847,6 +873,21 @@ const [isManualEditing, setIsManualEditing] = useState(false);
   }
   if (boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.boundingBox.infoSkipped });
+  }
+  if (startState === 'error' && startError) {
+    statusMessages.push({ variant: 'error', text: startError });
+  }
+  if (startState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: startError ? `${t.start.warningFailedPrefix} ${startError}` : t.start.warningFailedFallback,
+    });
+  }
+  if (startState === 'success' && startDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.start.successDelivered });
+  }
+  if (startState === 'success' && startDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.start.infoSkipped });
   }
   if (pauseState === 'error' && pauseError) {
     statusMessages.push({ variant: 'error', text: pauseError });
@@ -981,6 +1022,10 @@ const [isManualEditing, setIsManualEditing] = useState(false);
       }
       setJobProgress(null);
       setUploadState('error');
+      setStartState('idle');
+      setStartError(null);
+      setStartDeliveryStatus('skipped');
+      setStartProgram(null);
       setPauseState('idle');
       setPauseError(null);
       setPauseDeliveryStatus('skipped');
@@ -1250,6 +1295,63 @@ const handleBoundingBoxRoutine = () => {
   const handleCalibrate = () => {
     setEmergencyOpen(true);
     setPendingEmergencyAction(() => executeCalibrate);
+  };
+
+  const handleStartJob = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeStartJob);
+  };
+
+  const executeStartJob = async () => {
+    if (!result?.jobId) {
+      setStartError('No job loaded.');
+      setStartState('error');
+      return;
+    }
+
+    setStartState('running');
+    setStartError(null);
+    setStartDeliveryStatus('skipped');
+    setStartProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: result.jobId }),
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string | null;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setStartDeliveryStatus(deliveryStatus);
+      setStartProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Start request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setStartError(payload.robotDelivery?.error ?? t.start.warningFailedFallback);
+        setStartState('warning');
+      } else {
+        setStartState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setStartError(error.message);
+      } else {
+        setStartError(t.start.errorUnexpected);
+      }
+      setStartDeliveryStatus('failed');
+      setStartState('error');
+    }
   };
 
   const executeCalibrate = async () => {
@@ -1560,6 +1662,14 @@ const handleBoundingBoxRoutine = () => {
               <button
                 type="button"
                 className="secondary"
+                onClick={handleStartJob}
+                disabled={uploadState === 'uploading' || startState === 'running' || !result?.jobId}
+              >
+                {startState === 'running' ? t.actions.startRunning : t.actions.start}
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 onClick={handleBoundingBoxRoutine}
                 disabled={uploadState === 'uploading' || boundingBoxState === 'running'}
               >
@@ -1653,7 +1763,7 @@ const handleBoundingBoxRoutine = () => {
               {jobProgress ? `${jobProgress.current}/${jobProgress.total}` : result.metadata.movementCount > 0 ? `0/${result.metadata.movementCount}` : '—'}
             </li>
             <li>
-              <strong>{t.metadataLabels.robotDelivery}:</strong> {t.robotDeliveryStatus[result.robotDelivery.status]}
+              <strong>{t.metadataLabels.robotDelivery}:</strong> {t.robotDeliveryStatus[startDeliveryStatus]}
             </li>
             {result.metadata.boundingBoxMm && (
               <li>
@@ -1844,6 +1954,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.home}</h2>
           <textarea className="program-output" value={homeProgram} readOnly rows={8} />
+        </section>
+      )}
+      {startProgram && (
+        <section className="panel">
+          <h2>{t.actions.start}</h2>
+          <textarea className="program-output" value={startProgram} readOnly rows={12} />
         </section>
       )}
       {seekProgram && (

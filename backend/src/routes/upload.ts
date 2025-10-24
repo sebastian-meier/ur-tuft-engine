@@ -81,27 +81,10 @@ router.post('/', upload.single('image'), async (req, res, next) => {
       progressCallbackUrl: config.robot.progressCallbackUrl,
     });
 
-    const robotDelivery = {
-      attempted: config.robot.enabled,
-      status: 'skipped' as 'skipped' | 'delivered' | 'failed',
-      error: undefined as string | undefined,
-    };
-
-    if (config.robot.enabled) {
-      try {
-        await sendProgramToRobot(program);
-        robotDelivery.status = 'delivered';
-      } catch (robotError) {
-        robotDelivery.status = 'failed';
-        robotDelivery.error = robotError instanceof Error ? robotError.message : 'Unknown error';
-      }
-    }
-
-    res.status(robotDelivery.status === 'failed' ? 202 : 200).json({
+    res.status(200).json({
       jobId,
       metadata,
       program,
-      robotDelivery,
     });
   } catch (error) {
     next(error);
