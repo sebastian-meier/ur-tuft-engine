@@ -778,6 +778,156 @@ const [isManualEditing, setIsManualEditing] = useState(false);
     return errorState.message;
   }, [errorState, t]);
 
+  const statusMessages: Array<{ variant: 'error' | 'warning' | 'success' | 'info'; text: string }> = [];
+
+  if (uploadState === 'error' && currentErrorMessage) {
+    statusMessages.push({ variant: 'error', text: currentErrorMessage });
+  }
+  if (uploadState === 'warning' && result?.robotDelivery.status === 'failed') {
+    statusMessages.push({
+      variant: 'warning',
+      text: result.robotDelivery.error
+        ? `${t.messages.warningFailedPrefix} ${result.robotDelivery.error}`
+        : t.messages.warningFailedFallback,
+    });
+  }
+  if (uploadState === 'success' && result?.robotDelivery.status === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.messages.successDelivered });
+  }
+  if (uploadState === 'success' && result?.robotDelivery.status === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.messages.infoSkipped });
+  }
+  if (preflightState === 'error' && preflightError) {
+    statusMessages.push({ variant: 'error', text: preflightError });
+  }
+  if (preflightState === 'warning' && preflightResult?.robotDelivery.status === 'failed') {
+    statusMessages.push({
+      variant: 'warning',
+      text: preflightResult.robotDelivery.error
+        ? `${t.preflight.warningFailedPrefix} ${preflightResult.robotDelivery.error}`
+        : t.preflight.warningFailedFallback,
+    });
+  }
+  if (preflightState === 'success' && preflightResult?.robotDelivery.status === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.preflight.successDelivered });
+  }
+  if (preflightState === 'success' && preflightResult?.robotDelivery.status === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.preflight.infoSkipped });
+  }
+  if (toolTestState === 'error' && toolTestError) {
+    statusMessages.push({ variant: 'error', text: toolTestError });
+  }
+  if (toolTestState === 'warning' && toolTestResult?.robotDelivery.status === 'failed') {
+    statusMessages.push({
+      variant: 'warning',
+      text: toolTestResult.robotDelivery.error
+        ? `${t.toolTest.warningFailedPrefix} ${toolTestResult.robotDelivery.error}`
+        : t.toolTest.warningFailedFallback,
+    });
+  }
+  if (toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.toolTest.successDelivered });
+  }
+  if (toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.toolTest.infoSkipped });
+  }
+  if (boundingBoxState === 'error' && boundingBoxError) {
+    statusMessages.push({ variant: 'error', text: boundingBoxError });
+  }
+  if (boundingBoxState === 'warning' && boundingBoxResult?.robotDelivery.status === 'failed') {
+    statusMessages.push({
+      variant: 'warning',
+      text: boundingBoxResult.robotDelivery.error
+        ? `${t.boundingBox.warningFailedPrefix} ${boundingBoxResult.robotDelivery.error}`
+        : t.boundingBox.warningFailedFallback,
+    });
+  }
+  if (boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.boundingBox.successDelivered });
+  }
+  if (boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.boundingBox.infoSkipped });
+  }
+  if (pauseState === 'error' && pauseError) {
+    statusMessages.push({ variant: 'error', text: pauseError });
+  }
+  if (pauseState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: pauseError ? `${t.pause.warningFailedPrefix} ${pauseError}` : t.pause.warningFailedFallback,
+    });
+  }
+  if (pauseState === 'success' && pauseDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.pause.successDelivered });
+  }
+  if (pauseState === 'success' && pauseDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.pause.infoSkipped });
+  }
+  if (resumeState === 'error' && resumeError) {
+    statusMessages.push({ variant: 'error', text: resumeError });
+  }
+  if (resumeState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: resumeError ? `${t.resume.warningFailedPrefix} ${resumeError}` : t.resume.warningFailedFallback,
+    });
+  }
+  if (resumeState === 'success' && resumeDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.resume.successDelivered });
+  }
+  if (resumeState === 'success' && resumeDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.resume.infoSkipped });
+  }
+  if (calibrationState === 'error' && calibrationError) {
+    statusMessages.push({ variant: 'error', text: calibrationError });
+  }
+  if (calibrationState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: calibrationError
+        ? `${t.calibrate.warningFailedPrefix} ${calibrationError}`
+        : t.calibrate.warningFailedFallback,
+    });
+  }
+  if (calibrationState === 'success' && calibrationDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.calibrate.successDelivered });
+  }
+  if (calibrationState === 'success' && calibrationDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.calibrate.infoSkipped });
+  }
+  if (homeState === 'error' && homeError) {
+    statusMessages.push({ variant: 'error', text: homeError });
+  }
+  if (homeState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: homeError ? `${t.home.warningFailedPrefix} ${homeError}` : t.home.warningFailedFallback,
+    });
+  }
+  if (homeState === 'success' && homeDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.home.successDelivered });
+  }
+  if (homeState === 'success' && homeDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.home.infoSkipped });
+  }
+  if (seekState === 'error' && seekError) {
+    statusMessages.push({ variant: 'error', text: seekError });
+  }
+  if (seekState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: seekError ? `${t.seek.warningFailedPrefix} ${seekError}` : t.seek.warningFailedFallback,
+    });
+  }
+  if (seekState === 'success' && seekDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.seek.successDelivered });
+  }
+  if (seekState === 'success' && seekDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.seek.infoSkipped });
+  }
+
+  const latestMessage = statusMessages.length > 0 ? statusMessages[statusMessages.length - 1] : null;
+  const latestMessageClass = latestMessage ? `message ${latestMessage.variant}` : '';
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -1472,122 +1622,7 @@ const handleBoundingBoxRoutine = () => {
           </div>
         </form>
 
-        {uploadState === 'error' && currentErrorMessage && <p className="message error">{currentErrorMessage}</p>}
-        {uploadState === 'warning' && result?.robotDelivery.status === 'failed' && (
-          <p className="message warning">
-            {result.robotDelivery.error
-              ? `${t.messages.warningFailedPrefix} ${result.robotDelivery.error}`
-              : t.messages.warningFailedFallback}
-          </p>
-        )}
-        {uploadState === 'success' && result?.robotDelivery.status === 'delivered' && (
-          <p className="message success">{t.messages.successDelivered}</p>
-        )}
-        {uploadState === 'success' && result?.robotDelivery.status === 'skipped' && (
-          <p className="message info">{t.messages.infoSkipped}</p>
-        )}
-        {preflightState === 'error' && preflightError && <p className="message error">{preflightError}</p>}
-        {preflightState === 'warning' && preflightResult?.robotDelivery.status === 'failed' && (
-          <p className="message warning">
-            {preflightResult.robotDelivery.error
-              ? `${t.preflight.warningFailedPrefix} ${preflightResult.robotDelivery.error}`
-              : t.preflight.warningFailedFallback}
-          </p>
-        )}
-        {preflightState === 'success' && preflightResult?.robotDelivery.status === 'delivered' && (
-          <p className="message success">{t.preflight.successDelivered}</p>
-        )}
-        {preflightState === 'success' && preflightResult?.robotDelivery.status === 'skipped' && (
-          <p className="message info">{t.preflight.infoSkipped}</p>
-        )}
-        {toolTestState === 'error' && toolTestError && <p className="message error">{toolTestError}</p>}
-        {toolTestState === 'warning' && toolTestResult?.robotDelivery.status === 'failed' && (
-          <p className="message warning">
-            {toolTestResult.robotDelivery.error
-              ? `${t.toolTest.warningFailedPrefix} ${toolTestResult.robotDelivery.error}`
-              : t.toolTest.warningFailedFallback}
-          </p>
-        )}
-        {toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'delivered' && (
-          <p className="message success">{t.toolTest.successDelivered}</p>
-        )}
-        {toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped' && (
-          <p className="message info">{t.toolTest.infoSkipped}</p>
-        )}
-        {boundingBoxState === 'error' && boundingBoxError && <p className="message error">{boundingBoxError}</p>}
-        {boundingBoxState === 'warning' && boundingBoxResult?.robotDelivery.status === 'failed' && (
-          <p className="message warning">
-            {boundingBoxResult.robotDelivery.error
-              ? `${t.boundingBox.warningFailedPrefix} ${boundingBoxResult.robotDelivery.error}`
-              : t.boundingBox.warningFailedFallback}
-          </p>
-        )}
-        {boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'delivered' && (
-          <p className="message success">{t.boundingBox.successDelivered}</p>
-        )}
-        {boundingBoxState === 'success' && boundingBoxResult?.robotDelivery.status === 'skipped' && (
-          <p className="message info">{t.boundingBox.infoSkipped}</p>
-        )}
-        {pauseState === 'error' && pauseError && <p className="message error">{pauseError}</p>}
-        {pauseState === 'warning' && (
-          <p className="message warning">
-            {pauseError ? `${t.pause.warningFailedPrefix} ${pauseError}` : t.pause.warningFailedFallback}
-          </p>
-        )}
-        {pauseState === 'success' && pauseDeliveryStatus === 'delivered' && (
-          <p className="message success">{t.pause.successDelivered}</p>
-        )}
-        {pauseState === 'success' && pauseDeliveryStatus === 'skipped' && (
-          <p className="message info">{t.pause.infoSkipped}</p>
-        )}
-        {resumeState === 'error' && resumeError && <p className="message error">{resumeError}</p>}
-        {resumeState === 'warning' && (
-          <p className="message warning">
-            {resumeError ? `${t.resume.warningFailedPrefix} ${resumeError}` : t.resume.warningFailedFallback}
-          </p>
-        )}
-        {resumeState === 'success' && resumeDeliveryStatus === 'delivered' && (
-          <p className="message success">{t.resume.successDelivered}</p>
-        )}
-        {resumeState === 'success' && resumeDeliveryStatus === 'skipped' && (
-          <p className="message info">{t.resume.infoSkipped}</p>
-        )}
-        {calibrationState === 'error' && calibrationError && <p className="message error">{calibrationError}</p>}
-        {calibrationState === 'warning' && (
-          <p className="message warning">
-            {calibrationError ? `${t.calibrate.warningFailedPrefix} ${calibrationError}` : t.calibrate.warningFailedFallback}
-          </p>
-        )}
-        {calibrationState === 'success' && calibrationDeliveryStatus === 'delivered' && (
-          <p className="message success">{t.calibrate.successDelivered}</p>
-        )}
-        {calibrationState === 'success' && calibrationDeliveryStatus === 'skipped' && (
-          <p className="message info">{t.calibrate.infoSkipped}</p>
-        )}
-        {homeState === 'error' && homeError && <p className="message error">{homeError}</p>}
-        {homeState === 'warning' && (
-          <p className="message warning">
-            {homeError ? `${t.home.warningFailedPrefix} ${homeError}` : t.home.warningFailedFallback}
-          </p>
-        )}
-        {homeState === 'success' && homeDeliveryStatus === 'delivered' && (
-          <p className="message success">{t.home.successDelivered}</p>
-        )}
-        {homeState === 'success' && homeDeliveryStatus === 'skipped' && (
-          <p className="message info">{t.home.infoSkipped}</p>
-        )}
-        {seekState === 'error' && seekError && <p className="message error">{seekError}</p>}
-        {seekState === 'warning' && (
-          <p className="message warning">
-            {seekError ? `${t.seek.warningFailedPrefix} ${seekError}` : t.seek.warningFailedFallback}
-          </p>
-        )}
-        {seekState === 'success' && seekDeliveryStatus === 'delivered' && (
-          <p className="message success">{t.seek.successDelivered}</p>
-        )}
-        {seekState === 'success' && seekDeliveryStatus === 'skipped' && (
-          <p className="message info">{t.seek.infoSkipped}</p>
-        )}
+        {latestMessage && <p className={latestMessageClass}>{latestMessage.text}</p>}
       </section>
 
       {result && (
