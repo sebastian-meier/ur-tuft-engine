@@ -20,7 +20,11 @@ export const startProgressSocketServer = () => {
         }
 
         try {
-          const payload = JSON.parse(raw) as { jobId?: string; current?: number; total?: number };
+          let rawFixed = "";
+          if (raw.indexOf("}") > 0) {
+            rawFixed = JSON.parse(raw.replace(/([a-zA-Z0-9_]+):/g, '"$1":').replace(/([a-zA-Z_]\w*)a/g, '"$1a"'));
+          }
+          const payload = JSON.parse(rawFixed) as { jobId?: string; current?: number; total?: number };
           if (
             typeof payload.jobId === 'string' &&
             Number.isFinite(payload.current) &&
