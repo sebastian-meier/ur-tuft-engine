@@ -1399,75 +1399,72 @@ const handleBoundingBoxRoutine = () => {
           )}
 
           <div className="actions">
-            <button type="submit" disabled={uploadState === 'uploading'}>
-              {uploadState === 'uploading' ? t.actions.submitUploading : t.actions.submit}
-            </button>
-            <button type="button" className="secondary" onClick={reset} disabled={uploadState === 'uploading'}>
-              {t.actions.reset}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handlePreflight}
-              disabled={uploadState === 'uploading' || preflightState === 'running'}
-            >
-              {preflightState === 'running' ? t.actions.preflightRunning : t.actions.preflight}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleToolTest}
-              disabled={uploadState === 'uploading' || toolTestState === 'running'}
-            >
-              {toolTestState === 'running' ? t.actions.toolTestRunning : t.actions.toolTest}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleBoundingBoxRoutine}
-              disabled={
-                uploadState === 'uploading' ||
-                boundingBoxState === 'running'
-              }
-            >
-              {boundingBoxState === 'running' ? t.actions.boundingBoxRunning : t.actions.boundingBox}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handlePause}
-              disabled={uploadState === 'uploading' || pauseState === 'running'}
-            >
-              {pauseState === 'running' ? t.actions.pauseRunning : t.actions.pause}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleResume}
-              disabled={
-                uploadState === 'uploading' ||
-                resumeState === 'running' ||
-                !result?.jobId
-              }
-            >
-              {resumeState === 'running' ? t.actions.resumeRunning : t.actions.resume}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleCalibrate}
-              disabled={uploadState === 'uploading' || calibrationState === 'running'}
-            >
-              {calibrationState === 'running' ? t.actions.calibrateRunning : t.actions.calibrate}
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleHome}
-              disabled={uploadState === 'uploading' || homeState === 'running'}
-            >
-              {homeState === 'running' ? t.actions.homeRunning : t.actions.home}
-            </button>
+            <div className="actions-row">
+              <button type="submit" disabled={uploadState === 'uploading'}>
+                {uploadState === 'uploading' ? t.actions.submitUploading : t.actions.submit}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleBoundingBoxRoutine}
+                disabled={uploadState === 'uploading' || boundingBoxState === 'running'}
+              >
+                {boundingBoxState === 'running' ? t.actions.boundingBoxRunning : t.actions.boundingBox}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handlePause}
+                disabled={uploadState === 'uploading' || pauseState === 'running'}
+              >
+                {pauseState === 'running' ? t.actions.pauseRunning : t.actions.pause}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleResume}
+                disabled={uploadState === 'uploading' || resumeState === 'running' || !result?.jobId}
+              >
+                {resumeState === 'running' ? t.actions.resumeRunning : t.actions.resume}
+              </button>
+            </div>
+            <div className="actions-row">
+              <button type="button" className="secondary" onClick={reset} disabled={uploadState === 'uploading'}>
+                {t.actions.reset}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handlePreflight}
+                disabled={uploadState === 'uploading' || preflightState === 'running'}
+              >
+                {preflightState === 'running' ? t.actions.preflightRunning : t.actions.preflight}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleToolTest}
+                disabled={uploadState === 'uploading' || toolTestState === 'running'}
+              >
+                {toolTestState === 'running' ? t.actions.toolTestRunning : t.actions.toolTest}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleCalibrate}
+                disabled={uploadState === 'uploading' || calibrationState === 'running'}
+              >
+                {calibrationState === 'running' ? t.actions.calibrateRunning : t.actions.calibrate}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleHome}
+                disabled={uploadState === 'uploading' || homeState === 'running'}
+              >
+                {homeState === 'running' ? t.actions.homeRunning : t.actions.home}
+              </button>
+            </div>
           </div>
         </form>
 

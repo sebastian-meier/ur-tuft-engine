@@ -107,7 +107,14 @@ header h1 {
 
 .actions {
   display: flex;
+  flex-direction: column;
   gap: 0.75rem;
+}
+
+.actions-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 button {
