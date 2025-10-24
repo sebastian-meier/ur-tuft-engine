@@ -123,3 +123,41 @@ export function buildSeekProgram(
 
   return lines.join('\n');
 }
+
+const POSE_TRANS_REGEX = /pose_trans\([^,]+,\s*p\[\s*(-?\d*\.?\d+),\s*(-?\d*\.?\d+),\s*(-?\d*\.?\d+)/;
+
+const extractCoordinates = (block: string[]): { x: number; y: number; z: number } | null => {
+  const poseLine = block.find((line) => line.includes('pose_trans('));
+  if (!poseLine) {
+    return null;
+  }
+  const match = poseLine.match(POSE_TRANS_REGEX);
+  if (!match) {
+    return null;
+  }
+  const [, x, y, z] = match;
+  return {
+    x: Number.parseFloat(x),
+    y: Number.parseFloat(y),
+    z: Number.parseFloat(z),
+  };
+};
+
+export function getStepCoordinates(jobId: string, stepIndex: number): { x: number; y: number; z: number } | null {
+  const context = jobContexts.get(jobId);
+  if (!context) {
+    return null;
+  }
+  if (stepIndex < 0 || stepIndex >= context.movementBlocks.length) {
+    return null;
+  }
+  return extractCoordinates(context.movementBlocks[stepIndex]);
+}
+
+export function getLastRecordedCoordinates(jobId: string): { x: number; y: number; z: number } | null {
+  const context = jobContexts.get(jobId);
+  if (!context || context.movementBlocks.length === 0) {
+    return null;
+  }
+  return extractCoordinates(context.movementBlocks[context.movementBlocks.length - 1]);
+}

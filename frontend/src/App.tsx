@@ -1111,6 +1111,10 @@ const handleBoundingBoxRoutine = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/calibrate`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(result?.jobId ? { jobId: result.jobId } : {}),
       });
 
       const payload = (await response.json()) as {
