@@ -42,6 +42,8 @@ const translations: Record<Language, {
     resumeRunning: string;
     calibrate: string;
     calibrateRunning: string;
+    home: string;
+    homeRunning: string;
   };
   errors: {
     noFile: string;
@@ -137,6 +139,13 @@ const translations: Record<Language, {
     warningFailedFallback: string;
     errorUnexpected: string;
   };
+  home: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   introduction: {
     heading: string;
     start: {
@@ -178,6 +187,8 @@ const translations: Record<Language, {
       resumeRunning: 'Resuming…',
       calibrate: 'Calibrate Z-Max',
       calibrateRunning: 'Calibrating…',
+      home: 'Home to Center',
+      homeRunning: 'Moving to center…',
     },
     errors: {
       noFile: 'Please choose an image to upload.',
@@ -277,6 +288,13 @@ const translations: Record<Language, {
       warningFailedFallback: 'Calibration raise generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while attempting the calibration raise.',
     },
+    home: {
+      successDelivered: 'Home-to-center routine delivered to the robot.',
+      infoSkipped: 'Home-to-center routine generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Home-to-center routine generated, but sending to the robot failed:',
+      warningFailedFallback: 'Home-to-center routine generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while moving to the buffered center.',
+    },
     introduction: {
       heading: 'Introduction',
       start: {
@@ -329,6 +347,8 @@ const translations: Record<Language, {
       resumeRunning: 'Fortsetzen…',
       calibrate: 'Kalibrierung Z-Max',
       calibrateRunning: 'Kalibriere…',
+      home: 'Zum Zentrum fahren',
+      homeRunning: 'Fahre zum Zentrum…',
     },
     errors: {
       noFile: 'Bitte waehle ein Bild zum Hochladen aus.',
@@ -427,6 +447,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Kalibrierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Kalibrierungsfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler bei der Kalibrierungsfahrt.',
+    },
+    home: {
+      successDelivered: 'Zentrierfahrt wurde an den Roboter gesendet.',
+      infoSkipped: 'Zentrierfahrt generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Zentrums.',
     },
     introduction: {
       heading: 'Einführung',
@@ -578,6 +605,10 @@ const [calibrationState, setCalibrationState] = useState<PauseState>('idle');
 const [calibrationError, setCalibrationError] = useState<string | null>(null);
 const [calibrationDeliveryStatus, setCalibrationDeliveryStatus] = useState<RobotStatus>('skipped');
 const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null);
+const [homeState, setHomeState] = useState<PauseState>('idle');
+const [homeError, setHomeError] = useState<string | null>(null);
+const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
+const [homeProgram, setHomeProgram] = useState<string | null>(null);
 
   const t = translations[language];
 
@@ -667,6 +698,10 @@ const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null
     setCalibrationError(null);
     setCalibrationDeliveryStatus('skipped');
     setCalibrationProgram(null);
+    setHomeState('idle');
+    setHomeError(null);
+    setHomeDeliveryStatus('skipped');
+    setHomeProgram(null);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -747,6 +782,10 @@ const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null
       setCalibrationError(null);
       setCalibrationDeliveryStatus('skipped');
       setCalibrationProgram(null);
+      setHomeState('idle');
+      setHomeError(null);
+      setHomeDeliveryStatus('skipped');
+      setHomeProgram(null);
     }
   };
 
@@ -1044,6 +1083,53 @@ const handleBoundingBoxRoutine = () => {
     }
   };
 
+  const handleHome = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeHome);
+  };
+
+  const executeHome = async () => {
+    setHomeState('running');
+    setHomeError(null);
+    setHomeDeliveryStatus('skipped');
+    setHomeProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/home`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setHomeDeliveryStatus(deliveryStatus);
+      setHomeProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Home request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setHomeError(payload.robotDelivery?.error ?? t.home.warningFailedFallback);
+        setHomeState('warning');
+      } else {
+        setHomeState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setHomeError(error.message);
+      } else {
+        setHomeError(t.home.errorUnexpected);
+      }
+      setHomeDeliveryStatus('failed');
+      setHomeState('error');
+    }
+  };
+
   return (
     <main className="app">
       <div className="language-switch">
@@ -1180,6 +1266,14 @@ const handleBoundingBoxRoutine = () => {
             >
               {calibrationState === 'running' ? t.actions.calibrateRunning : t.actions.calibrate}
             </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleHome}
+              disabled={uploadState === 'uploading' || homeState === 'running'}
+            >
+              {homeState === 'running' ? t.actions.homeRunning : t.actions.home}
+            </button>
           </div>
         </form>
 
@@ -1274,6 +1368,18 @@ const handleBoundingBoxRoutine = () => {
         )}
         {calibrationState === 'success' && calibrationDeliveryStatus === 'skipped' && (
           <p className="message info">{t.calibrate.infoSkipped}</p>
+        )}
+        {homeState === 'error' && homeError && <p className="message error">{homeError}</p>}
+        {homeState === 'warning' && (
+          <p className="message warning">
+            {homeError ? `${t.home.warningFailedPrefix} ${homeError}` : t.home.warningFailedFallback}
+          </p>
+        )}
+        {homeState === 'success' && homeDeliveryStatus === 'delivered' && (
+          <p className="message success">{t.home.successDelivered}</p>
+        )}
+        {homeState === 'success' && homeDeliveryStatus === 'skipped' && (
+          <p className="message info">{t.home.infoSkipped}</p>
         )}
       </section>
 
@@ -1428,6 +1534,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.calibrate}</h2>
           <textarea className="program-output" value={calibrationProgram} readOnly rows={8} />
+        </section>
+      )}
+      {homeProgram && (
+        <section className="panel">
+          <h2>{t.actions.home}</h2>
+          <textarea className="program-output" value={homeProgram} readOnly rows={8} />
         </section>
       )}
       {emergencyOpen && (
