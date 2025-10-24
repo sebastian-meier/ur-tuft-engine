@@ -182,6 +182,8 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   const centerY = settings.workpieceBufferMm + effectiveHeightMm / 2;
   const safeZ = settings.safeHeightMm / 1000;
 
+  console.log(centerX, centerY, safeZ, effectiveHeightMm, effectiveWidthMm, settings);
+
   const programLines: string[] = [];
   programLines.push(`def tuft_tool_test_program():`);
   programLines.push(settings.coordinateString);
@@ -191,12 +193,6 @@ export function generateToolTestProgram(options: URGenerationOptions = {}): Tool
   programLines.push(`    new_pose = ${formatPose(settings.coordinateFrameVariable, centerX, centerY, safeZ)}`);
   programLines.push(
     `    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
-  );
-  programLines.push(
-    `    local test_pose = pose_trans(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], p[0, 0, -${displacementMeters.toFixed(4)}, 0, 0, 0])`,
-  );
-  programLines.push(
-    `    movel(test_pose, a=${moveAcceleration.toFixed(1)}, v=${travelSpeed.toFixed(4)})`,
   );
   programLines.push(`    set_digital_out(${settings.toolOutput}, True)`);
   programLines.push(`    sleep(${dwellSeconds.toFixed(1)})`);
@@ -324,11 +320,11 @@ const parseProgressCallbackUrl = (urlString: string | undefined): ProgressCallba
 const escapeStringForUrScript = (value: string): string => value.replace(/"/g, '\\"');
 
 const DEFAULT_OPTIONS: Required<URGenerationOptions> = {
-  workpieceWidthMm: 500,
-  workpieceHeightMm: 500,
+  workpieceWidthMm: 1500,
+  workpieceHeightMm: 1050,
   workpieceBufferMm: 50,
   safeHeightMm: 150,
-  tuftHeightMm: 5,
+  tuftHeightMm: -2,
   toolOutput: 0,
   travelSpeedMmPerSec: 200,
   tuftSpeedMmPerSec: 60,
