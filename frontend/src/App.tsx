@@ -1186,8 +1186,7 @@ const handleBoundingBoxRoutine = () => {
   };
 
   const handlePause = () => {
-    setEmergencyOpen(true);
-    setPendingEmergencyAction(() => executePause);
+    void executePause();
   };
 
   const executePause = async () => {
