@@ -3,7 +3,7 @@
  * the backend API, and surfaces the generated robot program and telemetry. Includes a lightweight
  * language switch so the interface can be used in English and German.
  */
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
@@ -732,12 +732,17 @@ const [manualProgressInput, setManualProgressInput] = useState('');
 const [manualProgressApplying, setManualProgressApplying] = useState(false);
 const [manualProgressError, setManualProgressError] = useState<string | null>(null);
 const [isManualEditing, setIsManualEditing] = useState(false);
+const isManualEditingRef = useRef(isManualEditing);
 
   const t = translations[language];
 
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
+
+  useEffect(() => {
+    isManualEditingRef.current = isManualEditing;
+  }, [isManualEditing]);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -787,15 +792,15 @@ const [isManualEditing, setIsManualEditing] = useState(false);
 
   useEffect(() => {
     if (!jobProgress) {
-      if (!isManualEditing) {
+      if (!isManualEditingRef.current) {
         setManualProgressInput('');
       }
       return;
     }
-    if (!isManualEditing) {
+    if (!isManualEditingRef.current) {
       setManualProgressInput(String(jobProgress.current));
     }
-  }, [jobProgress, isManualEditing]);
+  }, [jobProgress]);
 
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(language === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: 1 }),
@@ -1864,34 +1869,6 @@ const handleBoundingBoxRoutine = () => {
                 disabled={!result}
               />
             </div>
-            <input
-              id="manual-progress-input"
-              type="number"
-              min={0}
-              max={jobProgress?.total ?? undefined}
-              value={manualProgressInput}
-              onFocus={() => setIsManualEditing(true)}
-              onBlur={() => {
-                setIsManualEditing(false);
-                if (!jobProgress) {
-                  return;
-                }
-                let value = Number.parseInt(manualProgressInput, 10);
-                if (Number.isNaN(value)) {
-                  value = jobProgress.current;
-                }
-                value = Math.max(0, Math.min(jobProgress.total, value));
-                setManualProgressInput(String(value));
-              }}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (/^\d*$/.test(value)) {
-                  setManualProgressInput(value);
-                  setManualProgressError(null);
-                }
-              }}
-              disabled={!result}
-            />
             <div className="manual-progress-actions">
               <button
                 type="button"
