@@ -168,14 +168,10 @@ const translations: Record<Language, {
   };
   introduction: {
     heading: string;
-    start: {
+    sections: Array<{
       heading: string;
       steps: string[];
-    };
-    finish: {
-      heading: string;
-      steps: string[];
-    };
+    }>;
   };
   languageOptions: Record<Language, string>;
 }> = {
@@ -337,22 +333,52 @@ const translations: Record<Language, {
     },
     introduction: {
       heading: 'Introduction',
-      start: {
-        heading: 'Starting the system',
-        steps: [
-          'Demo step 1: Power on the main controller and check system indicators.',
-          'Demo step 2: Launch the tufting control software and connect to the robot.',
-          'Demo step 3: Load the current production job and review tool settings.',
-        ],
-      },
-      finish: {
-        heading: 'Finishing up',
-        steps: [
-          'Demo step 1: Run the parking routine to return the robot to a safe pose.',
-          'Demo step 2: Power down auxiliary equipment and secure the workspace.',
-          'Demo step 3: Record production notes and hand over to the next operator.',
-        ],
-      },
+      sections: [
+        {
+          heading: 'Starting the System',
+          steps: [
+            'Connect power',
+            'Start computer',
+            'Connect yarn to the tufting gun and check fabric',
+            'Start robot with the control panel (follow startup sequence on the panel until everything is green)',
+            'Make sure the robot is in Remote-Mode (see control panel upper right)',
+            'Switch on tufting gun (if not already on)',
+            'Remove cover of the tufting needle',
+            'Make sure nobody is standing near the robot',
+            'Check you followed all security guidelines',
+            'Release the security stop and follow steps on the control panel',
+          ],
+        },
+        {
+          heading: 'Test the Robot',
+          steps: [
+            'Click on "Reset"',
+            'Click on "Home to Center"',
+            'Click on "Test Tufting Gun"',
+            'Click on "Run Preflight"',
+          ],
+        },
+        {
+          heading: 'Start Tufting',
+          steps: [
+            'Select an Image',
+            'Click on "Generate Program"',
+            'Click on "Visit Tuft Area Corners" (Make sure this is actually the area you want to tuft on)',
+            'Click on "Start Job"',
+          ],
+        },
+        {
+          heading: 'Finishing up',
+          steps: [
+            'Shut down robot through the control panel',
+            'Put on needle cover',
+            'Shut down computer',
+            'Press the emergency button',
+            'Unplug power cord',
+            'Clean up',
+          ],
+        },
+      ],
     },
     languageOptions: {
       en: 'English',
@@ -517,22 +543,52 @@ const translations: Record<Language, {
     },
     introduction: {
       heading: 'Einführung',
-      start: {
-        heading: 'Systemstart',
-        steps: [
-          'Demo Schritt 1: Hauptsteuerung einschalten und Statusanzeigen prüfen.',
-          'Demo Schritt 2: Tufting-Software starten und Verbindung zum Roboter herstellen.',
-          'Demo Schritt 3: Aktuellen Produktionsauftrag laden und Werkzeugeinstellungen prüfen.',
-        ],
-      },
-      finish: {
-        heading: 'Abschluss',
-        steps: [
-          'Demo Schritt 1: Parkroutine ausführen, um den Roboter in eine sichere Position zu fahren.',
-          'Demo Schritt 2: Zusätzliche Geräte ausschalten und den Arbeitsplatz sichern.',
-          'Demo Schritt 3: Produktionsnotizen dokumentieren und an die nächste Schicht übergeben.',
-        ],
-      },
+      sections: [
+        {
+          heading: 'System starten',
+          steps: [
+            'Strom anschließen',
+            'Computer starten',
+            'Garn an der Tufting-Gun anschließen und Stoff prüfen',
+            'Roboter über das Bedienpanel starten (Startsequenz am Panel befolgen, bis alles grün ist)',
+            'Sicherstellen, dass der Roboter im Remote-Modus ist (siehe Bedienpanel oben rechts)',
+            'Tufting-Gun einschalten (falls noch aus)',
+            'Schutz der Tufting-Nadel abnehmen',
+            'Sicherstellen, dass niemand in der Nähe des Roboters steht',
+            'Prüfen, dass alle Sicherheitsrichtlinien beachtet wurden',
+            'Sicherheitsstopp lösen und den Anweisungen auf dem Bedienpanel folgen',
+          ],
+        },
+        {
+          heading: 'Roboter testen',
+          steps: [
+            'Auf "Zuruecksetzen" klicken',
+            'Auf "Zum Zentrum fahren" klicken',
+            'Auf "Tufting-Gun testen" klicken',
+            'Auf "Preflight starten" klicken',
+          ],
+        },
+        {
+          heading: 'Tuften starten',
+          steps: [
+            'Bild auswählen',
+            'Auf "Programm erzeugen" klicken',
+            'Auf "Ecken der Tuft-Fläche anfahren" klicken (sicherstellen, dass dies die gewünschte Tuft-Fläche ist)',
+            'Auf "Programm starten" klicken',
+          ],
+        },
+        {
+          heading: 'Abschließen',
+          steps: [
+            'Roboter über das Bedienpanel herunterfahren',
+            'Nadelschutz aufsetzen',
+            'Computer herunterfahren',
+            'Not-Aus-Taster drücken',
+            'Stromkabel abstecken',
+            'Arbeitsbereich aufräumen',
+          ],
+        },
+      ],
     },
     languageOptions: {
       en: 'English',
@@ -1602,22 +1658,16 @@ const handleBoundingBoxRoutine = () => {
 
       <section className="panel introduction">
         <h2>{t.introduction.heading}</h2>
-        <article>
-          <h3>{t.introduction.start.heading}</h3>
-          <ol>
-            {t.introduction.start.steps.map((step, index) => (
-              <li key={`start-step-${index}`}>{step}</li>
-            ))}
-          </ol>
-        </article>
-        <article>
-          <h3>{t.introduction.finish.heading}</h3>
-          <ol>
-            {t.introduction.finish.steps.map((step, index) => (
-              <li key={`finish-step-${index}`}>{step}</li>
-            ))}
-          </ol>
-        </article>
+        {t.introduction.sections.map((section, index) => (
+          <article key={`introduction-section-${index}`}>
+            <h3>{section.heading}</h3>
+            <ol>
+              {section.steps.map((step, stepIndex) => (
+                <li key={`introduction-section-${index}-step-${stepIndex}`}>{step}</li>
+              ))}
+            </ol>
+          </article>
+        ))}
       </section>
 
       <section className="panel">
