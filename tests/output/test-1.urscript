@@ -12,7 +12,7 @@ def tuft_program():
     global progress_port = 4700
     global progress_total = 2256
     global progress_current = 0
-    global progress_job_id = "ffa0f341-daf5-4af0-a6a6-67c8f7d45069"
+    global progress_job_id = "645c90bf-1acd-4e3e-9f73-d32fedb47cbd"
     global open=socket_open(progress_host,progress_port)
     while (open ==  False  ):
         global open=socket_open(progress_host,progress_port)
