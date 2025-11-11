@@ -20,6 +20,7 @@ import calibrateRouter from './routes/calibrate';
 import homeRouter from './routes/home';
 import seekRouter from './routes/seek';
 import startRouter from './routes/start';
+import safeHeightRouter from './routes/safeHeight';
 import { startProgressSocketServer } from './services/progressSocketServer';
 
 const app = express();
@@ -69,6 +70,7 @@ app.use('/api/calibrate', calibrateRouter);
 app.use('/api/home', homeRouter);
 app.use('/api/seek', seekRouter);
 app.use('/api/start', startRouter);
+app.use('/api/safe-height', safeHeightRouter);
 
 startProgressSocketServer();
 

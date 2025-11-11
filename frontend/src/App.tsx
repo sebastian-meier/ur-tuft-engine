@@ -52,6 +52,8 @@ const translations: Record<Language, {
     progressApplyRunning: string;
     seek: string;
     seekRunning: string;
+    safeHeight: string;
+    safeHeightRunning: string;
   };
   errors: {
     noFile: string;
@@ -175,6 +177,13 @@ const translations: Record<Language, {
     warningFailedFallback: string;
     errorUnexpected: string;
   };
+  safeHeight: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   introduction: {
     heading: string;
     sections: Array<{
@@ -218,6 +227,8 @@ const translations: Record<Language, {
       calibrateRunning: 'Calibrating…',
       home: 'Home to Center',
       homeRunning: 'Moving to center…',
+      safeHeight: 'Raise to Safe Height',
+      safeHeightRunning: 'Raising to safe height…',
       progressApply: 'Update Progress',
       progressApplyRunning: 'Updating progress…',
       seek: 'Move to Step',
@@ -342,6 +353,13 @@ const translations: Record<Language, {
       warningFailedFallback: 'Home-to-center routine generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while moving to the buffered center.',
     },
+    safeHeight: {
+      successDelivered: 'Safe-height raise delivered to the robot.',
+      infoSkipped: 'Safe-height raise generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Safe-height raise generated, but sending to the robot failed:',
+      warningFailedFallback: 'Safe-height raise generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while moving to the safe height.',
+    },
     seek: {
       successDelivered: 'Seek routine delivered to the robot.',
       infoSkipped: 'Seek routine generated; configure a robot host to execute automatically.',
@@ -437,6 +455,8 @@ const translations: Record<Language, {
       calibrateRunning: 'Kalibriere…',
       home: 'Zum Zentrum fahren',
       homeRunning: 'Fahre zum Zentrum…',
+      safeHeight: 'Sicherheitsabstand anfahren',
+      safeHeightRunning: 'Sicherheitsabstand wird angefahren…',
       progressApply: 'Fortschritt aktualisieren',
       progressApplyRunning: 'Aktualisiere Fortschritt…',
       seek: 'Zu Schritt fahren',
@@ -560,6 +580,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Zentrums.',
+    },
+    safeHeight: {
+      successDelivered: 'Sicherheitsabstandsbewegung wurde an den Roboter gesendet.',
+      infoSkipped: 'Sicherheitsabstandsbewegung generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Sicherheitsabstandsbewegung generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Sicherheitsabstandsbewegung generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Sicherheitsabstands.',
     },
     seek: {
       successDelivered: 'Positionierungsfahrt wurde an den Roboter gesendet.',
@@ -762,10 +789,14 @@ const [calibrationState, setCalibrationState] = useState<PauseState>('idle');
 const [calibrationError, setCalibrationError] = useState<string | null>(null);
 const [calibrationDeliveryStatus, setCalibrationDeliveryStatus] = useState<RobotStatus>('skipped');
 const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null);
-const [homeState, setHomeState] = useState<PauseState>('idle');
-const [homeError, setHomeError] = useState<string | null>(null);
-const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
-const [homeProgram, setHomeProgram] = useState<string | null>(null);
+  const [homeState, setHomeState] = useState<PauseState>('idle');
+  const [homeError, setHomeError] = useState<string | null>(null);
+  const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [homeProgram, setHomeProgram] = useState<string | null>(null);
+  const [safeHeightState, setSafeHeightState] = useState<PauseState>('idle');
+  const [safeHeightError, setSafeHeightError] = useState<string | null>(null);
+  const [safeHeightDeliveryStatus, setSafeHeightDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [safeHeightProgram, setSafeHeightProgram] = useState<string | null>(null);
 const [seekState, setSeekState] = useState<PauseState>('idle');
 const [seekError, setSeekError] = useState<string | null>(null);
 const [seekDeliveryStatus, setSeekDeliveryStatus] = useState<RobotStatus>('skipped');
@@ -888,6 +919,10 @@ const isManualEditingRef = useRef(isManualEditing);
     setHomeError(null);
     setHomeDeliveryStatus('skipped');
     setHomeProgram(null);
+    setSafeHeightState('idle');
+    setSafeHeightError(null);
+    setSafeHeightDeliveryStatus('skipped');
+    setSafeHeightProgram(null);
     setSeekState('idle');
     setSeekError(null);
     setSeekDeliveryStatus('skipped');
@@ -1075,6 +1110,23 @@ const isManualEditingRef = useRef(isManualEditing);
   }
   if (homeState === 'success' && homeDeliveryStatus === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.home.infoSkipped });
+  }
+  if (safeHeightState === 'error' && safeHeightError) {
+    statusMessages.push({ variant: 'error', text: safeHeightError });
+  }
+  if (safeHeightState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: safeHeightError
+        ? `${t.safeHeight.warningFailedPrefix} ${safeHeightError}`
+        : t.safeHeight.warningFailedFallback,
+    });
+  }
+  if (safeHeightState === 'success' && safeHeightDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.safeHeight.successDelivered });
+  }
+  if (safeHeightState === 'success' && safeHeightDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.safeHeight.infoSkipped });
   }
   if (seekState === 'error' && seekError) {
     statusMessages.push({ variant: 'error', text: seekError });
@@ -1621,6 +1673,53 @@ const handleBoundingBoxRoutine = () => {
     }
   };
 
+  const handleSafeHeight = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeSafeHeight);
+  };
+
+  const executeSafeHeight = async () => {
+    setSafeHeightState('running');
+    setSafeHeightError(null);
+    setSafeHeightDeliveryStatus('skipped');
+    setSafeHeightProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/safe-height`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string | null;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setSafeHeightDeliveryStatus(deliveryStatus);
+      setSafeHeightProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Safe-height request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setSafeHeightError(payload.robotDelivery?.error ?? t.safeHeight.warningFailedFallback);
+        setSafeHeightState('warning');
+      } else {
+        setSafeHeightState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setSafeHeightError(error.message);
+      } else {
+        setSafeHeightError(t.safeHeight.errorUnexpected);
+      }
+      setSafeHeightDeliveryStatus('failed');
+      setSafeHeightState('error');
+    }
+  };
+
   const overrideProgressOnServer = async (value: number) => {
     if (!result?.jobId) {
       throw new Error('No job loaded');
@@ -1899,6 +1998,14 @@ const handleBoundingBoxRoutine = () => {
               <button
                 type="button"
                 className="secondary"
+                onClick={handleSafeHeight}
+                disabled={uploadState === 'uploading' || safeHeightState === 'running'}
+              >
+                {safeHeightState === 'running' ? t.actions.safeHeightRunning : t.actions.safeHeight}
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 onClick={handleHome}
                 disabled={uploadState === 'uploading' || homeState === 'running'}
               >
@@ -2135,6 +2242,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.calibrate}</h2>
           <textarea className="program-output" value={calibrationProgram} readOnly rows={8} />
+        </section>
+      )}
+      {safeHeightProgram && (
+        <section className="panel">
+          <h2>{t.actions.safeHeight}</h2>
+          <textarea className="program-output" value={safeHeightProgram} readOnly rows={8} />
         </section>
       )}
       {homeProgram && (
