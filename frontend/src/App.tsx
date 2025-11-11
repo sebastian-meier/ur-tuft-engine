@@ -31,6 +31,8 @@ const translations: Record<Language, {
     preflightRunning: string;
     toolTest: string;
     toolTestRunning: string;
+    stopTool: string;
+    stopToolRunning: string;
     boundingBox: string;
     boundingBoxRunning: string;
     emergency: string;
@@ -103,6 +105,13 @@ const translations: Record<Language, {
       toolOutput: string;
       travelSpeed: string;
     };
+  };
+  toolStop: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
   };
   boundingBox: {
     heading: string;
@@ -192,6 +201,8 @@ const translations: Record<Language, {
       preflightRunning: 'Running preflight…',
       toolTest: 'Test Tufting Gun',
       toolTestRunning: 'Testing tufting gun…',
+      stopTool: 'Stop Tufting Gun',
+      stopToolRunning: 'Stopping tufting gun…',
       boundingBox: 'Visit Tuft Area Corners',
       boundingBoxRunning: 'Moving to tuft area corners…',
       emergency: 'Emergency Routine',
@@ -268,6 +279,13 @@ const translations: Record<Language, {
         toolOutput: 'Tool Output',
         travelSpeed: 'Travel Speed',
       },
+    },
+    toolStop: {
+      successDelivered: 'Tufting gun stop command delivered to the robot.',
+      infoSkipped: 'Tufting gun stop command generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Tufting gun stop command generated, but sending to the robot failed:',
+      warningFailedFallback: 'Tufting gun stop command generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while stopping the tufting gun.',
     },
     boundingBox: {
       heading: 'Bounding Box Corners',
@@ -402,6 +420,8 @@ const translations: Record<Language, {
       preflightRunning: 'Preflight läuft…',
       toolTest: 'Tufting-Gun testen',
       toolTestRunning: 'Tufting-Gun-Test läuft…',
+      stopTool: 'Tufting-Gun stoppen',
+      stopToolRunning: 'Tufting-Gun wird gestoppt…',
       boundingBox: 'Ecken der Tuft-Fläche anfahren',
       boundingBoxRunning: 'Roboter fährt Tuft-Fläche ab…',
       emergency: 'Notfallroutine',
@@ -478,6 +498,13 @@ const translations: Record<Language, {
         toolOutput: 'Digital-Ausgang',
         travelSpeed: 'Verfahrgeschwindigkeit',
       },
+    },
+    toolStop: {
+      successDelivered: 'Stop-Befehl für die Tufting-Gun wurde an den Roboter gesendet.',
+      infoSkipped: 'Stop-Befehl generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Stop-Befehl generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Stop-Befehl generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Stoppen der Tufting-Gun.',
     },
     boundingBox: {
       heading: 'Ecken der Tuft-Fläche',
@@ -662,6 +689,17 @@ interface ToolTestResponse {
 
 type ToolTestState = 'idle' | 'running' | 'success' | 'warning' | 'error';
 
+interface ToolStopResponse {
+  program: string;
+  robotDelivery: {
+    attempted: boolean;
+    status: RobotStatus;
+    error?: string;
+  };
+}
+
+type ToolStopState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 interface BoundingBoxRoutineResponse {
   jobId: string;
   metadata: {
@@ -695,10 +733,14 @@ function App() {
   const [preflightState, setPreflightState] = useState<PreflightState>('idle');
   const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
-const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
-const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
-const [toolTestError, setToolTestError] = useState<string | null>(null);
-const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
+  const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
+  const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
+  const [toolTestError, setToolTestError] = useState<string | null>(null);
+  const [toolStopState, setToolStopState] = useState<ToolStopState>('idle');
+  const [toolStopError, setToolStopError] = useState<string | null>(null);
+  const [toolStopDeliveryStatus, setToolStopDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [toolStopProgram, setToolStopProgram] = useState<string | null>(null);
+  const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
 const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineResponse | null>(null);
 const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 const [emergencyOpen, setEmergencyOpen] = useState(false);
@@ -818,6 +860,10 @@ const isManualEditingRef = useRef(isManualEditing);
     setToolTestState('idle');
     setToolTestResult(null);
     setToolTestError(null);
+    setToolStopState('idle');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
@@ -920,6 +966,21 @@ const isManualEditingRef = useRef(isManualEditing);
   }
   if (toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.toolTest.infoSkipped });
+  }
+  if (toolStopState === 'error' && toolStopError) {
+    statusMessages.push({ variant: 'error', text: toolStopError });
+  }
+  if (toolStopState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: toolStopError ? `${t.toolStop.warningFailedPrefix} ${toolStopError}` : t.toolStop.warningFailedFallback,
+    });
+  }
+  if (toolStopState === 'success' && toolStopDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.toolStop.successDelivered });
+  }
+  if (toolStopState === 'success' && toolStopDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.toolStop.infoSkipped });
   }
   if (boundingBoxState === 'error' && boundingBoxError) {
     statusMessages.push({ variant: 'error', text: boundingBoxError });
@@ -1051,6 +1112,10 @@ const isManualEditingRef = useRef(isManualEditing);
     setToolTestState('idle');
     setToolTestResult(null);
     setToolTestError(null);
+    setToolStopState('idle');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
@@ -1106,6 +1171,10 @@ const isManualEditingRef = useRef(isManualEditing);
       setHomeError(null);
       setHomeDeliveryStatus('skipped');
       setHomeProgram(null);
+      setToolStopState('idle');
+      setToolStopError(null);
+      setToolStopDeliveryStatus('skipped');
+      setToolStopProgram(null);
     }
   };
 
@@ -1174,6 +1243,48 @@ const handleToolTest = () => {
         setToolTestError(t.toolTest.errorUnexpected);
       }
       setToolTestState('error');
+    }
+  };
+
+  const handleToolStop = () => {
+    void executeToolStop();
+  };
+
+  const executeToolStop = async () => {
+    setToolStopState('running');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tool-stop`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as ToolStopResponse & { error?: string };
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setToolStopDeliveryStatus(deliveryStatus);
+      setToolStopProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? payload.error ?? 'Tool stop failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setToolStopError(payload.robotDelivery?.error ?? t.toolStop.warningFailedFallback);
+        setToolStopState('warning');
+      } else {
+        setToolStopState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setToolStopError(error.message);
+      } else {
+        setToolStopError(t.toolStop.errorUnexpected);
+      }
+      setToolStopState('error');
+      setToolStopDeliveryStatus('failed');
     }
   };
 
@@ -1772,6 +1883,14 @@ const handleBoundingBoxRoutine = () => {
               <button
                 type="button"
                 className="secondary"
+                onClick={handleToolStop}
+                disabled={uploadState === 'uploading' || toolStopState === 'running'}
+              >
+                {toolStopState === 'running' ? t.actions.stopToolRunning : t.actions.stopTool}
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 onClick={handleCalibrate}
                 disabled={uploadState === 'uploading' || calibrationState === 'running'}
               >
@@ -1966,6 +2085,12 @@ const handleBoundingBoxRoutine = () => {
             </li>
           </ul>
           <textarea className="program-output" value={toolTestResult.program} readOnly rows={8} />
+        </section>
+      )}
+      {toolStopProgram && (
+        <section className="panel">
+          <h2>{t.actions.stopTool}</h2>
+          <textarea className="program-output" value={toolStopProgram} readOnly rows={6} />
         </section>
       )}
       {boundingBoxResult && (
