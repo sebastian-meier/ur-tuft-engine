@@ -704,6 +704,7 @@ const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 const [emergencyOpen, setEmergencyOpen] = useState(false);
 const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() => Promise<void>)>(null);
 const [jobProgress, setJobProgress] = useState<{ current: number; total: number } | null>(null);
+const [isProgressPollingPaused, setIsProgressPollingPaused] = useState(false);
 const [pauseState, setPauseState] = useState<PauseState>('idle');
 const [pauseError, setPauseError] = useState<string | null>(null);
 const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
@@ -759,7 +760,7 @@ const isManualEditingRef = useRef(isManualEditing);
   }, [selectedFile]);
 
   useEffect(() => {
-    if (!result?.jobId) {
+    if (!result?.jobId || isProgressPollingPaused) {
       return undefined;
     }
 
@@ -788,7 +789,7 @@ const isManualEditingRef = useRef(isManualEditing);
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [result?.jobId]);
+  }, [result?.jobId, isProgressPollingPaused]);
 
   useEffect(() => {
     if (!jobProgress) {
@@ -812,6 +813,7 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('idle');
     setErrorState({ key: 'none' });
     setResult(null);
+    setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
     setPreflightError(null);
@@ -1045,6 +1047,7 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('uploading');
     setErrorState({ key: 'none' });
     setResult(null);
+    setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
     setPreflightError(null);
@@ -1072,6 +1075,7 @@ const isManualEditingRef = useRef(isManualEditing);
       }
 
       setResult(payload);
+      setIsProgressPollingPaused(false);
       if (payload.metadata.movementCount > 0) {
         setJobProgress({ current: 0, total: payload.metadata.movementCount });
       } else {
@@ -1085,6 +1089,7 @@ const isManualEditingRef = useRef(isManualEditing);
         setErrorState({ key: 'unexpected' });
       }
       setJobProgress(null);
+      setIsProgressPollingPaused(false);
       setUploadState('error');
       setStartState('idle');
       setStartError(null);
@@ -1269,6 +1274,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setPauseDeliveryStatus(deliveryStatus);
       setPauseProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(true);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Pause request failed.';
@@ -1332,6 +1340,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setResumeDeliveryStatus(deliveryStatus);
       setResumeProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(false);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Resume request failed.';
@@ -1394,6 +1405,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setStartDeliveryStatus(deliveryStatus);
       setStartProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(false);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Start request failed.';
@@ -1686,6 +1700,7 @@ const handleBoundingBoxRoutine = () => {
                 const file = event.target.files?.[0] ?? null;
                 setSelectedFile(file);
                 setResult(null);
+                setIsProgressPollingPaused(false);
                 setUploadState('idle');
                 setErrorState({ key: 'none' });
               }}
