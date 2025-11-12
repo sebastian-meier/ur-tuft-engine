@@ -681,7 +681,7 @@ export async function generateURProgram(
   const firstColumn = columnPlans[0];
   const firstSegment = firstColumn.segments[0];
   const initialX = settings.workpieceBufferMm + (firstColumn.column + 0.5) * pixelWidthMm;
-  const initialY = settings.workpieceBufferMm + (firstSegment.start + 0.5) * pixelHeightMm;
+  const initialY = settings.workpieceBufferMm + firstSegment.start * pixelHeightMm;
 
   moveSafe(initialX, initialY);
 
@@ -689,8 +689,8 @@ export async function generateURProgram(
     const columnX = settings.workpieceBufferMm + (plan.column + 0.5) * pixelWidthMm;
 
     for (const segment of plan.segments) {
-      const startY = settings.workpieceBufferMm + (segment.start + 0.5) * pixelHeightMm;
-      const endY = settings.workpieceBufferMm + (segment.end + 0.5) * pixelHeightMm;
+      const startY = settings.workpieceBufferMm + segment.start * pixelHeightMm;
+      const endY = settings.workpieceBufferMm + (segment.end + 1) * pixelHeightMm;
 
       if (lastSafeX !== columnX || lastSafeY !== startY) {
         moveSafe(columnX, startY);

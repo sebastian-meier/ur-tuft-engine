@@ -31,6 +31,8 @@ const translations: Record<Language, {
     preflightRunning: string;
     toolTest: string;
     toolTestRunning: string;
+    stopTool: string;
+    stopToolRunning: string;
     boundingBox: string;
     boundingBoxRunning: string;
     emergency: string;
@@ -50,6 +52,8 @@ const translations: Record<Language, {
     progressApplyRunning: string;
     seek: string;
     seekRunning: string;
+    safeHeight: string;
+    safeHeightRunning: string;
   };
   errors: {
     noFile: string;
@@ -103,6 +107,13 @@ const translations: Record<Language, {
       toolOutput: string;
       travelSpeed: string;
     };
+  };
+  toolStop: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
   };
   boundingBox: {
     heading: string;
@@ -166,6 +177,13 @@ const translations: Record<Language, {
     warningFailedFallback: string;
     errorUnexpected: string;
   };
+  safeHeight: {
+    successDelivered: string;
+    infoSkipped: string;
+    warningFailedPrefix: string;
+    warningFailedFallback: string;
+    errorUnexpected: string;
+  };
   introduction: {
     heading: string;
     sections: Array<{
@@ -192,6 +210,8 @@ const translations: Record<Language, {
       preflightRunning: 'Running preflight…',
       toolTest: 'Test Tufting Gun',
       toolTestRunning: 'Testing tufting gun…',
+      stopTool: 'Stop Tufting Gun',
+      stopToolRunning: 'Stopping tufting gun…',
       boundingBox: 'Visit Tuft Area Corners',
       boundingBoxRunning: 'Moving to tuft area corners…',
       emergency: 'Emergency Routine',
@@ -207,6 +227,8 @@ const translations: Record<Language, {
       calibrateRunning: 'Calibrating…',
       home: 'Home to Center',
       homeRunning: 'Moving to center…',
+      safeHeight: 'Raise to Safe Height',
+      safeHeightRunning: 'Raising to safe height…',
       progressApply: 'Update Progress',
       progressApplyRunning: 'Updating progress…',
       seek: 'Move to Step',
@@ -269,6 +291,13 @@ const translations: Record<Language, {
         travelSpeed: 'Travel Speed',
       },
     },
+    toolStop: {
+      successDelivered: 'Tufting gun stop command delivered to the robot.',
+      infoSkipped: 'Tufting gun stop command generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Tufting gun stop command generated, but sending to the robot failed:',
+      warningFailedFallback: 'Tufting gun stop command generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while stopping the tufting gun.',
+    },
     boundingBox: {
       heading: 'Bounding Box Corners',
       successDelivered: 'Bounding box routine delivered to the robot.',
@@ -323,6 +352,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Home-to-center routine generated, but sending to the robot failed:',
       warningFailedFallback: 'Home-to-center routine generated, but sending to the robot failed.',
       errorUnexpected: 'Unexpected error while moving to the buffered center.',
+    },
+    safeHeight: {
+      successDelivered: 'Safe-height raise delivered to the robot.',
+      infoSkipped: 'Safe-height raise generated; configure a robot host to execute automatically.',
+      warningFailedPrefix: 'Safe-height raise generated, but sending to the robot failed:',
+      warningFailedFallback: 'Safe-height raise generated, but sending to the robot failed.',
+      errorUnexpected: 'Unexpected error while moving to the safe height.',
     },
     seek: {
       successDelivered: 'Seek routine delivered to the robot.',
@@ -402,6 +438,8 @@ const translations: Record<Language, {
       preflightRunning: 'Preflight läuft…',
       toolTest: 'Tufting-Gun testen',
       toolTestRunning: 'Tufting-Gun-Test läuft…',
+      stopTool: 'Tufting-Gun stoppen',
+      stopToolRunning: 'Tufting-Gun wird gestoppt…',
       boundingBox: 'Ecken der Tuft-Fläche anfahren',
       boundingBoxRunning: 'Roboter fährt Tuft-Fläche ab…',
       emergency: 'Notfallroutine',
@@ -417,6 +455,8 @@ const translations: Record<Language, {
       calibrateRunning: 'Kalibriere…',
       home: 'Zum Zentrum fahren',
       homeRunning: 'Fahre zum Zentrum…',
+      safeHeight: 'Sicherheitsabstand anfahren',
+      safeHeightRunning: 'Sicherheitsabstand wird angefahren…',
       progressApply: 'Fortschritt aktualisieren',
       progressApplyRunning: 'Aktualisiere Fortschritt…',
       seek: 'Zu Schritt fahren',
@@ -479,6 +519,13 @@ const translations: Record<Language, {
         travelSpeed: 'Verfahrgeschwindigkeit',
       },
     },
+    toolStop: {
+      successDelivered: 'Stop-Befehl für die Tufting-Gun wurde an den Roboter gesendet.',
+      infoSkipped: 'Stop-Befehl generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Stop-Befehl generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Stop-Befehl generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Stoppen der Tufting-Gun.',
+    },
     boundingBox: {
       heading: 'Ecken der Tuft-Fläche',
       successDelivered: 'Routine wurde an den Roboter gesendet.',
@@ -533,6 +580,13 @@ const translations: Record<Language, {
       warningFailedPrefix: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen:',
       warningFailedFallback: 'Zentrierfahrt generiert, aber die Roboterübertragung ist fehlgeschlagen.',
       errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Zentrums.',
+    },
+    safeHeight: {
+      successDelivered: 'Sicherheitsabstandsbewegung wurde an den Roboter gesendet.',
+      infoSkipped: 'Sicherheitsabstandsbewegung generiert. Konfiguriere einen Roboter-Host für die automatische Ausführung.',
+      warningFailedPrefix: 'Sicherheitsabstandsbewegung generiert, aber die Roboterübertragung ist fehlgeschlagen:',
+      warningFailedFallback: 'Sicherheitsabstandsbewegung generiert, aber die Roboterübertragung ist fehlgeschlagen.',
+      errorUnexpected: 'Unerwarteter Fehler beim Anfahren des Sicherheitsabstands.',
     },
     seek: {
       successDelivered: 'Positionierungsfahrt wurde an den Roboter gesendet.',
@@ -662,6 +716,17 @@ interface ToolTestResponse {
 
 type ToolTestState = 'idle' | 'running' | 'success' | 'warning' | 'error';
 
+interface ToolStopResponse {
+  program: string;
+  robotDelivery: {
+    attempted: boolean;
+    status: RobotStatus;
+    error?: string;
+  };
+}
+
+type ToolStopState = 'idle' | 'running' | 'success' | 'warning' | 'error';
+
 interface BoundingBoxRoutineResponse {
   jobId: string;
   metadata: {
@@ -695,15 +760,20 @@ function App() {
   const [preflightState, setPreflightState] = useState<PreflightState>('idle');
   const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
-const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
-const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
-const [toolTestError, setToolTestError] = useState<string | null>(null);
-const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
+  const [toolTestState, setToolTestState] = useState<ToolTestState>('idle');
+  const [toolTestResult, setToolTestResult] = useState<ToolTestResponse | null>(null);
+  const [toolTestError, setToolTestError] = useState<string | null>(null);
+  const [toolStopState, setToolStopState] = useState<ToolStopState>('idle');
+  const [toolStopError, setToolStopError] = useState<string | null>(null);
+  const [toolStopDeliveryStatus, setToolStopDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [toolStopProgram, setToolStopProgram] = useState<string | null>(null);
+  const [boundingBoxState, setBoundingBoxState] = useState<BoundingBoxRoutineState>('idle');
 const [boundingBoxResult, setBoundingBoxResult] = useState<BoundingBoxRoutineResponse | null>(null);
 const [boundingBoxError, setBoundingBoxError] = useState<string | null>(null);
 const [emergencyOpen, setEmergencyOpen] = useState(false);
 const [pendingEmergencyAction, setPendingEmergencyAction] = useState<null | (() => Promise<void>)>(null);
 const [jobProgress, setJobProgress] = useState<{ current: number; total: number } | null>(null);
+const [isProgressPollingPaused, setIsProgressPollingPaused] = useState(false);
 const [pauseState, setPauseState] = useState<PauseState>('idle');
 const [pauseError, setPauseError] = useState<string | null>(null);
 const [pauseDeliveryStatus, setPauseDeliveryStatus] = useState<RobotStatus>('skipped');
@@ -720,10 +790,14 @@ const [calibrationState, setCalibrationState] = useState<PauseState>('idle');
 const [calibrationError, setCalibrationError] = useState<string | null>(null);
 const [calibrationDeliveryStatus, setCalibrationDeliveryStatus] = useState<RobotStatus>('skipped');
 const [calibrationProgram, setCalibrationProgram] = useState<string | null>(null);
-const [homeState, setHomeState] = useState<PauseState>('idle');
-const [homeError, setHomeError] = useState<string | null>(null);
-const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
-const [homeProgram, setHomeProgram] = useState<string | null>(null);
+  const [homeState, setHomeState] = useState<PauseState>('idle');
+  const [homeError, setHomeError] = useState<string | null>(null);
+  const [homeDeliveryStatus, setHomeDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [homeProgram, setHomeProgram] = useState<string | null>(null);
+  const [safeHeightState, setSafeHeightState] = useState<PauseState>('idle');
+  const [safeHeightError, setSafeHeightError] = useState<string | null>(null);
+  const [safeHeightDeliveryStatus, setSafeHeightDeliveryStatus] = useState<RobotStatus>('skipped');
+  const [safeHeightProgram, setSafeHeightProgram] = useState<string | null>(null);
 const [seekState, setSeekState] = useState<PauseState>('idle');
 const [seekError, setSeekError] = useState<string | null>(null);
 const [seekDeliveryStatus, setSeekDeliveryStatus] = useState<RobotStatus>('skipped');
@@ -759,7 +833,7 @@ const isManualEditingRef = useRef(isManualEditing);
   }, [selectedFile]);
 
   useEffect(() => {
-    if (!result?.jobId) {
+    if (!result?.jobId || isProgressPollingPaused) {
       return undefined;
     }
 
@@ -788,7 +862,7 @@ const isManualEditingRef = useRef(isManualEditing);
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [result?.jobId]);
+  }, [result?.jobId, isProgressPollingPaused]);
 
   useEffect(() => {
     if (!jobProgress) {
@@ -812,12 +886,17 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('idle');
     setErrorState({ key: 'none' });
     setResult(null);
+    setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
     setPreflightError(null);
     setToolTestState('idle');
     setToolTestResult(null);
     setToolTestError(null);
+    setToolStopState('idle');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
@@ -842,6 +921,10 @@ const isManualEditingRef = useRef(isManualEditing);
     setHomeError(null);
     setHomeDeliveryStatus('skipped');
     setHomeProgram(null);
+    setSafeHeightState('idle');
+    setSafeHeightError(null);
+    setSafeHeightDeliveryStatus('skipped');
+    setSafeHeightProgram(null);
     setSeekState('idle');
     setSeekError(null);
     setSeekDeliveryStatus('skipped');
@@ -920,6 +1003,21 @@ const isManualEditingRef = useRef(isManualEditing);
   }
   if (toolTestState === 'success' && toolTestResult?.robotDelivery.status === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.toolTest.infoSkipped });
+  }
+  if (toolStopState === 'error' && toolStopError) {
+    statusMessages.push({ variant: 'error', text: toolStopError });
+  }
+  if (toolStopState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: toolStopError ? `${t.toolStop.warningFailedPrefix} ${toolStopError}` : t.toolStop.warningFailedFallback,
+    });
+  }
+  if (toolStopState === 'success' && toolStopDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.toolStop.successDelivered });
+  }
+  if (toolStopState === 'success' && toolStopDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.toolStop.infoSkipped });
   }
   if (boundingBoxState === 'error' && boundingBoxError) {
     statusMessages.push({ variant: 'error', text: boundingBoxError });
@@ -1015,6 +1113,23 @@ const isManualEditingRef = useRef(isManualEditing);
   if (homeState === 'success' && homeDeliveryStatus === 'skipped') {
     statusMessages.push({ variant: 'info', text: t.home.infoSkipped });
   }
+  if (safeHeightState === 'error' && safeHeightError) {
+    statusMessages.push({ variant: 'error', text: safeHeightError });
+  }
+  if (safeHeightState === 'warning') {
+    statusMessages.push({
+      variant: 'warning',
+      text: safeHeightError
+        ? `${t.safeHeight.warningFailedPrefix} ${safeHeightError}`
+        : t.safeHeight.warningFailedFallback,
+    });
+  }
+  if (safeHeightState === 'success' && safeHeightDeliveryStatus === 'delivered') {
+    statusMessages.push({ variant: 'success', text: t.safeHeight.successDelivered });
+  }
+  if (safeHeightState === 'success' && safeHeightDeliveryStatus === 'skipped') {
+    statusMessages.push({ variant: 'info', text: t.safeHeight.infoSkipped });
+  }
   if (seekState === 'error' && seekError) {
     statusMessages.push({ variant: 'error', text: seekError });
   }
@@ -1045,12 +1160,17 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('uploading');
     setErrorState({ key: 'none' });
     setResult(null);
+    setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
     setPreflightError(null);
     setToolTestState('idle');
     setToolTestResult(null);
     setToolTestError(null);
+    setToolStopState('idle');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
     setBoundingBoxState('idle');
     setBoundingBoxResult(null);
     setBoundingBoxError(null);
@@ -1072,6 +1192,7 @@ const isManualEditingRef = useRef(isManualEditing);
       }
 
       setResult(payload);
+      setIsProgressPollingPaused(false);
       if (payload.metadata.movementCount > 0) {
         setJobProgress({ current: 0, total: payload.metadata.movementCount });
       } else {
@@ -1085,6 +1206,7 @@ const isManualEditingRef = useRef(isManualEditing);
         setErrorState({ key: 'unexpected' });
       }
       setJobProgress(null);
+      setIsProgressPollingPaused(false);
       setUploadState('error');
       setStartState('idle');
       setStartError(null);
@@ -1106,6 +1228,10 @@ const isManualEditingRef = useRef(isManualEditing);
       setHomeError(null);
       setHomeDeliveryStatus('skipped');
       setHomeProgram(null);
+      setToolStopState('idle');
+      setToolStopError(null);
+      setToolStopDeliveryStatus('skipped');
+      setToolStopProgram(null);
     }
   };
 
@@ -1174,6 +1300,48 @@ const handleToolTest = () => {
         setToolTestError(t.toolTest.errorUnexpected);
       }
       setToolTestState('error');
+    }
+  };
+
+  const handleToolStop = () => {
+    void executeToolStop();
+  };
+
+  const executeToolStop = async () => {
+    setToolStopState('running');
+    setToolStopError(null);
+    setToolStopDeliveryStatus('skipped');
+    setToolStopProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/tool-stop`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as ToolStopResponse & { error?: string };
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setToolStopDeliveryStatus(deliveryStatus);
+      setToolStopProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? payload.error ?? 'Tool stop failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setToolStopError(payload.robotDelivery?.error ?? t.toolStop.warningFailedFallback);
+        setToolStopState('warning');
+      } else {
+        setToolStopState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setToolStopError(error.message);
+      } else {
+        setToolStopError(t.toolStop.errorUnexpected);
+      }
+      setToolStopState('error');
+      setToolStopDeliveryStatus('failed');
     }
   };
 
@@ -1269,6 +1437,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setPauseDeliveryStatus(deliveryStatus);
       setPauseProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(true);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Pause request failed.';
@@ -1332,6 +1503,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setResumeDeliveryStatus(deliveryStatus);
       setResumeProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(false);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Resume request failed.';
@@ -1394,6 +1568,9 @@ const handleBoundingBoxRoutine = () => {
       const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
       setStartDeliveryStatus(deliveryStatus);
       setStartProgram(payload.program ?? null);
+      if (deliveryStatus === 'delivered') {
+        setIsProgressPollingPaused(false);
+      }
 
       if (!response.ok && response.status !== 202) {
         const message = payload.robotDelivery?.error ?? 'Start request failed.';
@@ -1507,6 +1684,53 @@ const handleBoundingBoxRoutine = () => {
       }
       setHomeDeliveryStatus('failed');
       setHomeState('error');
+    }
+  };
+
+  const handleSafeHeight = () => {
+    setEmergencyOpen(true);
+    setPendingEmergencyAction(() => executeSafeHeight);
+  };
+
+  const executeSafeHeight = async () => {
+    setSafeHeightState('running');
+    setSafeHeightError(null);
+    setSafeHeightDeliveryStatus('skipped');
+    setSafeHeightProgram(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/safe-height`, {
+        method: 'POST',
+      });
+
+      const payload = (await response.json()) as {
+        robotDelivery: { status: RobotStatus; error?: string };
+        program?: string | null;
+      };
+
+      const deliveryStatus = payload.robotDelivery?.status ?? 'skipped';
+      setSafeHeightDeliveryStatus(deliveryStatus);
+      setSafeHeightProgram(payload.program ?? null);
+
+      if (!response.ok && response.status !== 202) {
+        const message = payload.robotDelivery?.error ?? 'Safe-height request failed.';
+        throw new Error(message);
+      }
+
+      if (deliveryStatus === 'failed') {
+        setSafeHeightError(payload.robotDelivery?.error ?? t.safeHeight.warningFailedFallback);
+        setSafeHeightState('warning');
+      } else {
+        setSafeHeightState('success');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.trim().length > 0) {
+        setSafeHeightError(error.message);
+      } else {
+        setSafeHeightError(t.safeHeight.errorUnexpected);
+      }
+      setSafeHeightDeliveryStatus('failed');
+      setSafeHeightState('error');
     }
   };
 
@@ -1686,6 +1910,7 @@ const handleBoundingBoxRoutine = () => {
                 const file = event.target.files?.[0] ?? null;
                 setSelectedFile(file);
                 setResult(null);
+                setIsProgressPollingPaused(false);
                 setUploadState('idle');
                 setErrorState({ key: 'none' });
               }}
@@ -1772,10 +1997,26 @@ const handleBoundingBoxRoutine = () => {
               <button
                 type="button"
                 className="secondary"
+                onClick={handleToolStop}
+                disabled={uploadState === 'uploading' || toolStopState === 'running'}
+              >
+                {toolStopState === 'running' ? t.actions.stopToolRunning : t.actions.stopTool}
+              </button>
+              <button
+                type="button"
+                className="secondary"
                 onClick={handleCalibrate}
                 disabled={uploadState === 'uploading' || calibrationState === 'running'}
               >
                 {calibrationState === 'running' ? t.actions.calibrateRunning : t.actions.calibrate}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={handleSafeHeight}
+                disabled={uploadState === 'uploading' || safeHeightState === 'running'}
+              >
+                {safeHeightState === 'running' ? t.actions.safeHeightRunning : t.actions.safeHeight}
               </button>
               <button
                 type="button"
@@ -1968,6 +2209,12 @@ const handleBoundingBoxRoutine = () => {
           <textarea className="program-output" value={toolTestResult.program} readOnly rows={8} />
         </section>
       )}
+      {toolStopProgram && (
+        <section className="panel">
+          <h2>{t.actions.stopTool}</h2>
+          <textarea className="program-output" value={toolStopProgram} readOnly rows={6} />
+        </section>
+      )}
       {boundingBoxResult && (
         <section className="panel">
           <h2>{t.boundingBox.heading}</h2>
@@ -2010,6 +2257,12 @@ const handleBoundingBoxRoutine = () => {
         <section className="panel">
           <h2>{t.actions.calibrate}</h2>
           <textarea className="program-output" value={calibrationProgram} readOnly rows={8} />
+        </section>
+      )}
+      {safeHeightProgram && (
+        <section className="panel">
+          <h2>{t.actions.safeHeight}</h2>
+          <textarea className="program-output" value={safeHeightProgram} readOnly rows={8} />
         </section>
       )}
       {homeProgram && (

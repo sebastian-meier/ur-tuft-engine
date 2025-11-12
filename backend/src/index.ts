@@ -11,6 +11,7 @@ import { config } from './config';
 import uploadRouter from './routes/upload';
 import preflightRouter from './routes/preflight';
 import toolTestRouter from './routes/toolTest';
+import toolStopRouter from './routes/toolStop';
 import boundingBoxRouter from './routes/boundingBox';
 import progressRouter from './routes/progress';
 import pauseRouter from './routes/pause';
@@ -19,6 +20,7 @@ import calibrateRouter from './routes/calibrate';
 import homeRouter from './routes/home';
 import seekRouter from './routes/seek';
 import startRouter from './routes/start';
+import safeHeightRouter from './routes/safeHeight';
 import { startProgressSocketServer } from './services/progressSocketServer';
 
 const app = express();
@@ -59,6 +61,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/images', uploadRouter);
 app.use('/api/preflight', preflightRouter);
 app.use('/api/tool-test', toolTestRouter);
+app.use('/api/tool-stop', toolStopRouter);
 app.use('/api/bounding-box', boundingBoxRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/pause', pauseRouter);
@@ -67,6 +70,7 @@ app.use('/api/calibrate', calibrateRouter);
 app.use('/api/home', homeRouter);
 app.use('/api/seek', seekRouter);
 app.use('/api/start', startRouter);
+app.use('/api/safe-height', safeHeightRouter);
 
 startProgressSocketServer();
 
