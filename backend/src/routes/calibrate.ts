@@ -39,7 +39,7 @@ router.post('/', async (req, res) => {
       (config.toolpath.workpieceHeightMm - config.toolpath.workpieceBufferMm * 2) / 2000;
   }
 
-  const targetPose = formatPoseForFrame(xMeters, yMeters, -0.02);
+  const targetPose = formatPoseForFrame(xMeters, yMeters, -0.04);
 
   const program = `def tuft_calibration_rise():\n${COORDINATE_STRING}\n${POSE_STRING}\n    textmsg("Starting calibration raise")\n    set_digital_out(${config.robot.toolOutput}, False)\n    new_pose = ${targetPose}\n    movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=0.8, v=${travelSpeed})\n    textmsg("Calibration raise finished")\nend\n\n` + 'tuft_calibration_rise()';
 

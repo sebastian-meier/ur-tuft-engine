@@ -100,7 +100,7 @@ export const config: AppConfig = {
     enabled: Boolean(robotHost),
     toolOutput: parseNumber(process.env.ROBOT_TOOL_OUTPUT, 0),
     travelSpeedMmPerSec: Math.max(10, parseNumber(process.env.ROBOT_TRAVEL_SPEED_MM_S, 200)),
-    tuftSpeedMmPerSec: Math.max(5, parseNumber(process.env.ROBOT_TUFT_SPEED_MM_S, 60)),
+    tuftSpeedMmPerSec: Math.max(5, parseNumber(process.env.ROBOT_TUFT_SPEED_MM_S, 35)),
     contactForceThresholdN: Math.max(0.5, parseNumber(process.env.ROBOT_CONTACT_FORCE_THRESHOLD_N, 15)),
     progressHost,
     progressPort,
@@ -111,7 +111,7 @@ export const config: AppConfig = {
     workpieceHeightMm: Math.max(1, parseNumber(process.env.WORKPIECE_HEIGHT_MM, 500)),
     workpieceBufferMm: Math.max(1, parseNumber(process.env.WORKPIECE_BUFFER_MM, 50)),
     safeHeightMm: Math.max(10, parseNumber(process.env.SAFE_HEIGHT_MM, 150)),
-    tuftHeightMm: parseNumber(process.env.TUFT_HEIGHT_MM, 5),
+    tuftHeightMm: parseNumber(process.env.TUFT_HEIGHT_MM, -30),
     blackPixelThreshold: Math.min(255, Math.max(0, parseNumber(process.env.BLACK_PIXEL_THRESHOLD, 64))),
   },
 };
