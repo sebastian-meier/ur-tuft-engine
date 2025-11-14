@@ -3,7 +3,7 @@
  * the backend API, and surfaces the generated robot program and telemetry. Includes a lightweight
  * language switch so the interface can be used in English and German.
  */
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
@@ -1414,11 +1414,7 @@ const handleBoundingBoxRoutine = () => {
     setPendingEmergencyAction(null);
   };
 
-  const handlePause = () => {
-    void executePause();
-  };
-
-  const executePause = async () => {
+  const executePause = useCallback(async () => {
     setPauseState('running');
     setPauseError(null);
     setPauseDeliveryStatus('skipped');
@@ -1461,7 +1457,49 @@ const handleBoundingBoxRoutine = () => {
       setPauseState('error');
       setPauseDeliveryStatus('failed');
     }
-  };
+  }, [result?.jobId, t.pause.errorUnexpected, t.pause.warningFailedFallback]);
+
+  const handlePause = useCallback(() => {
+    if (uploadState === 'uploading' || pauseState === 'running') {
+      return;
+    }
+
+    void executePause();
+  }, [executePause, pauseState, uploadState]);
+
+  useEffect(() => {
+    const handleSpacebarPause = (event: KeyboardEvent) => {
+      if (event.repeat || (event.code !== 'Space' && event.key !== ' ')) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tagName = target.tagName;
+        if (
+          tagName === 'INPUT' ||
+          tagName === 'TEXTAREA' ||
+          tagName === 'SELECT' ||
+          target.isContentEditable
+        ) {
+          return;
+        }
+      }
+
+      if (uploadState === 'uploading' || pauseState === 'running') {
+        return;
+      }
+
+      event.preventDefault();
+      handlePause();
+    };
+
+    window.addEventListener('keydown', handleSpacebarPause);
+
+    return () => {
+      window.removeEventListener('keydown', handleSpacebarPause);
+    };
+  }, [handlePause, pauseState, uploadState]);
 
   const handleResume = () => {
     if (!result?.jobId) {
