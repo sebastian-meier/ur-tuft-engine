@@ -7,7 +7,7 @@ import { sendProgramToRobot } from '../services/robotClient';
 const router = Router();
 
 router.post('/', async (req, res) => {
-  const { jobId } = req.body ?? {};
+  const { jobId, chunkIndex } = req.body ?? {};
 
   if (typeof jobId !== 'string' || jobId.trim().length === 0) {
     res.status(400).json({ error: 'jobId must be provided as a non-empty string.' });
@@ -20,6 +20,23 @@ router.post('/', async (req, res) => {
     return;
   }
 
+  if (!context.programChunks || context.programChunks.length === 0) {
+    res.status(400).json({ error: 'No program chunks available for the requested job.' });
+    return;
+  }
+
+  const resolvedChunkIndex =
+    typeof chunkIndex === 'number' && Number.isFinite(chunkIndex)
+      ? Math.floor(chunkIndex)
+      : 0;
+
+  if (resolvedChunkIndex < 0 || resolvedChunkIndex >= context.programChunks.length) {
+    res.status(400).json({ error: 'chunkIndex must reference an available program chunk.' });
+    return;
+  }
+
+  const chunk = context.programChunks[resolvedChunkIndex];
+
   const robotDelivery = {
     attempted: config.robot.enabled,
     status: 'skipped' as 'skipped' | 'delivered' | 'failed',
@@ -28,7 +45,7 @@ router.post('/', async (req, res) => {
 
   if (config.robot.enabled) {
     try {
-      await sendProgramToRobot(context.program);
+      await sendProgramToRobot(chunk.program);
       robotDelivery.status = 'delivered';
     } catch (error) {
       robotDelivery.status = 'failed';
@@ -37,10 +54,12 @@ router.post('/', async (req, res) => {
   }
 
   if (robotDelivery.status !== 'failed') {
-    overrideProgress(jobId.trim(), 0);
+    overrideProgress(jobId.trim(), chunk.progressStart);
   }
 
-  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({ robotDelivery, program: context.program });
+  res
+    .status(robotDelivery.status === 'failed' ? 202 : 200)
+    .json({ robotDelivery, program: chunk.program, chunkIndex: resolvedChunkIndex, totalChunks: context.programChunks.length });
 });
 
 export default router;
