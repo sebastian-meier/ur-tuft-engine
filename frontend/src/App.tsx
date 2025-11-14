@@ -65,6 +65,15 @@ const translations: Record<Language, {
     successDelivered: string;
     infoSkipped: string;
   };
+  programParts: {
+    heading: string;
+    selectLabel: string;
+    optionLabel: string;
+    movelSuffix: string;
+    blockSuffix: string;
+    progressPrefix: string;
+    unavailable: string;
+  };
   programDetailsHeading: string;
   metadataLabels: {
     jobId: string;
@@ -73,6 +82,7 @@ const translations: Record<Language, {
     imageSize: string;
     tuftSegments: string;
     activePixels: string;
+    movelCommands: string;
     robotDelivery: string;
     progress: string;
   };
@@ -217,8 +227,8 @@ const translations: Record<Language, {
       emergency: 'Emergency Routine',
       emergencyConfirm: 'Confirm & Execute',
       emergencyCancel: 'Cancel',
-      start: 'Start Job',
-      startRunning: 'Starting…',
+      start: 'Send Program Part',
+      startRunning: 'Sending…',
       pause: 'Pause & Raise Tool',
       pauseRunning: 'Pausing…',
       resume: 'Resume Program',
@@ -244,6 +254,15 @@ const translations: Record<Language, {
       successDelivered: 'Program delivered to the robot.',
       infoSkipped: 'Program is ready. Configure a robot host to send it automatically.',
     },
+    programParts: {
+      heading: 'Program parts',
+      selectLabel: 'Program part',
+      optionLabel: 'Part',
+      movelSuffix: 'movel commands',
+      blockSuffix: 'movement blocks',
+      progressPrefix: 'Progress offset',
+      unavailable: 'No program parts generated for this artwork.',
+    },
     programDetailsHeading: 'Program Details',
     metadataLabels: {
       jobId: 'Job ID',
@@ -252,6 +271,7 @@ const translations: Record<Language, {
       imageSize: 'Image Size',
       tuftSegments: 'Tuft Segments',
       activePixels: 'Active Pixels',
+      movelCommands: 'movel Commands',
       robotDelivery: 'Robot Delivery',
       progress: 'Progress',
     },
@@ -445,8 +465,8 @@ const translations: Record<Language, {
       emergency: 'Notfallroutine',
       emergencyConfirm: 'Bestätigen & Ausführen',
       emergencyCancel: 'Abbrechen',
-      start: 'Programm starten',
-      startRunning: 'Starte…',
+      start: 'Programmschritt senden',
+      startRunning: 'Sende…',
       pause: 'Pause & Werkzeug anheben',
       pauseRunning: 'Pausiere…',
       resume: 'Programm fortsetzen',
@@ -472,6 +492,15 @@ const translations: Record<Language, {
       successDelivered: 'Programm wurde an den Roboter uebertragen.',
       infoSkipped: 'Programm ist bereit. Konfiguriere einen Roboter-Host fuer die automatische Uebertragung.',
     },
+    programParts: {
+      heading: 'Programmschritte',
+      selectLabel: 'Programmschritt',
+      optionLabel: 'Teil',
+      movelSuffix: 'movel-Befehle',
+      blockSuffix: 'Bewegungsbloecke',
+      progressPrefix: 'Fortschritts-Offset',
+      unavailable: 'Keine Programmschritte fuer dieses Motiv erstellt.',
+    },
     programDetailsHeading: 'Programmdetails',
     metadataLabels: {
       jobId: 'Job-ID',
@@ -480,6 +509,7 @@ const translations: Record<Language, {
       imageSize: 'Bildgroesse',
       tuftSegments: 'Tuft-Segmente',
       activePixels: 'Aktive Pixel',
+      movelCommands: 'movel-Befehle',
       robotDelivery: 'Roboteruebertragung',
       progress: 'Fortschritt',
     },
@@ -664,6 +694,15 @@ interface BoundingBoxMm {
   maxY: number;
 }
 
+interface ProgramChunkDetails {
+  program: string;
+  startIndex: number;
+  endIndex: number;
+  blockCount: number;
+  movelCount: number;
+  progressStart: number;
+}
+
 interface UploadResponse {
   jobId: string;
   metadata: {
@@ -675,8 +714,9 @@ interface UploadResponse {
     activePixels: number;
     boundingBoxMm: BoundingBoxMm | null;
     movementCount: number;
+    movelCommandCount: number;
   };
-  program: string;
+  programChunks: ProgramChunkDetails[];
 }
 
 interface PreflightResponse {
@@ -757,6 +797,7 @@ function App() {
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [errorState, setErrorState] = useState<ErrorState>({ key: 'none' });
   const [result, setResult] = useState<UploadResponse | null>(null);
+  const [selectedChunkIndex, setSelectedChunkIndex] = useState(0);
   const [preflightState, setPreflightState] = useState<PreflightState>('idle');
   const [preflightResult, setPreflightResult] = useState<PreflightResponse | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
@@ -876,6 +917,22 @@ const isManualEditingRef = useRef(isManualEditing);
     }
   }, [jobProgress]);
 
+  useEffect(() => {
+    if (!result?.programChunks || result.programChunks.length === 0) {
+      if (selectedChunkIndex !== 0) {
+        setSelectedChunkIndex(0);
+      }
+      return;
+    }
+    const clampedIndex = Math.min(
+      Math.max(0, selectedChunkIndex),
+      result.programChunks.length - 1,
+    );
+    if (clampedIndex !== selectedChunkIndex) {
+      setSelectedChunkIndex(clampedIndex);
+    }
+  }, [result?.programChunks, selectedChunkIndex]);
+
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(language === 'de' ? 'de-DE' : 'en-US', { maximumFractionDigits: 1 }),
     [language],
@@ -886,6 +943,7 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('idle');
     setErrorState({ key: 'none' });
     setResult(null);
+    setSelectedChunkIndex(0);
     setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
@@ -1160,6 +1218,7 @@ const isManualEditingRef = useRef(isManualEditing);
     setUploadState('uploading');
     setErrorState({ key: 'none' });
     setResult(null);
+    setSelectedChunkIndex(0);
     setIsProgressPollingPaused(false);
     setPreflightState('idle');
     setPreflightResult(null);
@@ -1192,6 +1251,7 @@ const isManualEditingRef = useRef(isManualEditing);
       }
 
       setResult(payload);
+      setSelectedChunkIndex(0);
       setIsProgressPollingPaused(false);
       if (payload.metadata.movementCount > 0) {
         setJobProgress({ current: 0, total: payload.metadata.movementCount });
@@ -1595,7 +1655,7 @@ const handleBoundingBoxRoutine = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ jobId: result.jobId }),
+        body: JSON.stringify({ jobId: result.jobId, chunkIndex: selectedChunkIndex }),
       });
 
       const payload = (await response.json()) as {
@@ -1948,6 +2008,7 @@ const handleBoundingBoxRoutine = () => {
                 const file = event.target.files?.[0] ?? null;
                 setSelectedFile(file);
                 setResult(null);
+                setSelectedChunkIndex(0);
                 setIsProgressPollingPaused(false);
                 setUploadState('idle');
                 setErrorState({ key: 'none' });
@@ -1983,7 +2044,12 @@ const handleBoundingBoxRoutine = () => {
                 type="button"
                 className="secondary"
                 onClick={handleStartJob}
-                disabled={uploadState === 'uploading' || startState === 'running' || !result?.jobId}
+                disabled={
+                  uploadState === 'uploading' ||
+                  startState === 'running' ||
+                  !result?.jobId ||
+                  (result?.programChunks?.length ?? 0) === 0
+                }
               >
                 {startState === 'running' ? t.actions.startRunning : t.actions.start}
               </button>
@@ -2095,6 +2161,10 @@ const handleBoundingBoxRoutine = () => {
               <strong>{t.metadataLabels.activePixels}:</strong> {result.metadata.activePixels}
             </li>
             <li>
+              <strong>{t.metadataLabels.movelCommands}:</strong>{' '}
+              {numberFormatter.format(result.metadata.movelCommandCount)}
+            </li>
+            <li>
               <strong>{t.metadataLabels.progress}:</strong>{' '}
               {jobProgress ? `${jobProgress.current}/${jobProgress.total}` : result.metadata.movementCount > 0 ? `0/${result.metadata.movementCount}` : '—'}
             </li>
@@ -2178,7 +2248,44 @@ const handleBoundingBoxRoutine = () => {
             </div>
             {manualProgressError && <p className="message error">{manualProgressError}</p>}
           </div>
-          <textarea className="program-output" value={result.program} readOnly rows={16} />
+          {result.programChunks.length > 0 ? (
+            <>
+              <div className="program-part-selector">
+                <label htmlFor="program-part-select">{t.programParts.selectLabel}</label>
+                <select
+                  id="program-part-select"
+                  value={selectedChunkIndex}
+                  onChange={(event) => {
+                    const nextIndex = Number.parseInt(event.target.value, 10);
+                    if (!Number.isNaN(nextIndex)) {
+                      setSelectedChunkIndex(nextIndex);
+                    }
+                  }}
+                >
+                  {result.programChunks.map((chunk, index) => (
+                    <option key={`${chunk.startIndex}-${chunk.endIndex}`} value={index}>
+                      {`${t.programParts.optionLabel} ${index + 1} – ${numberFormatter.format(chunk.movelCount)} ${t.programParts.movelSuffix}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="program-part-summary">
+                  {`${numberFormatter.format(
+                    result.programChunks[selectedChunkIndex]?.blockCount ?? 0,
+                  )} ${t.programParts.blockSuffix} · ${t.programParts.progressPrefix}: ${numberFormatter.format(
+                    result.programChunks[selectedChunkIndex]?.progressStart ?? 0,
+                  )}`}
+                </p>
+              </div>
+              <textarea
+                className="program-output"
+                value={result.programChunks[selectedChunkIndex]?.program ?? ''}
+                readOnly
+                rows={16}
+              />
+            </>
+          ) : (
+            <p className="message info">{t.programParts.unavailable}</p>
+          )}
         </section>
       )}
       {preflightResult && (

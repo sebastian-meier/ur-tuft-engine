@@ -5,7 +5,6 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { generateURProgram } from '../services/urGenerator';
-import { sendProgramToRobot } from '../services/robotClient';
 import { config } from '../config';
 
 /** Multer instance that buffers uploads in memory for further processing. */
@@ -67,12 +66,15 @@ router.post('/', upload.single('image'), async (req, res, next) => {
   }
 
   try {
-    const { jobId, metadata, program } = await generateURProgram(req.file.buffer, req.file.originalname, {
-      workpieceWidthMm: config.toolpath.workpieceWidthMm,
-      workpieceHeightMm: config.toolpath.workpieceHeightMm,
-      workpieceBufferMm: config.toolpath.workpieceBufferMm,
-      safeHeightMm: config.toolpath.safeHeightMm,
-      tuftHeightMm: config.toolpath.tuftHeightMm,
+    const { jobId, metadata, programChunks } = await generateURProgram(
+      req.file.buffer,
+      req.file.originalname,
+      {
+        workpieceWidthMm: config.toolpath.workpieceWidthMm,
+        workpieceHeightMm: config.toolpath.workpieceHeightMm,
+        workpieceBufferMm: config.toolpath.workpieceBufferMm,
+        safeHeightMm: config.toolpath.safeHeightMm,
+        tuftHeightMm: config.toolpath.tuftHeightMm,
       blackPixelThreshold: config.toolpath.blackPixelThreshold,
       toolOutput: config.robot.toolOutput,
       travelSpeedMmPerSec: config.robot.travelSpeedMmPerSec,
@@ -85,7 +87,7 @@ router.post('/', upload.single('image'), async (req, res, next) => {
     res.status(200).json({
       jobId,
       metadata,
-      program,
+      programChunks,
     });
   } catch (error) {
     next(error);

@@ -1,3 +1,5 @@
+import type { ProgramChunk } from './urGenerator';
+
 interface ProgressConfig {
   host: string;
   port: number;
@@ -9,13 +11,14 @@ export interface JobContext {
   coordinateFrameVariable: string;
   progressConfig: ProgressConfig | null;
   movementCount: number;
+  movelCommandCount: number;
   safeZ: number;
   travelSpeed: number;
   tuftSpeed: number;
   toolOutput: number;
   coordinateString: string;
   poseString: string;
-  program: string;
+  programChunks: ProgramChunk[];
 }
 
 const jobContexts = new Map<string, JobContext>();
