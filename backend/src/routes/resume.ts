@@ -7,10 +7,15 @@ import { sendProgramToRobot } from '../services/robotClient';
 const router = Router();
 
 router.post('/', async (req, res) => {
-  const { jobId } = req.body ?? {};
+  const { jobId, targetStep } = req.body ?? {};
 
   if (typeof jobId !== 'string' || jobId.trim().length === 0) {
     res.status(400).json({ error: 'jobId must be provided as a non-empty string.' });
+    return;
+  }
+
+  if (typeof targetStep !== 'number' || !Number.isFinite(targetStep)) {
+    res.status(400).json({ error: 'targetStep must be provided as a finite number.' });
     return;
   }
 
@@ -32,8 +37,9 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const maxProgress = context.movementCount;
-  const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), maxProgress));
+  // const maxProgress = context.movementCount;
+  // const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), maxProgress));
+  const resumePosition =    Math.max(0, Math.min(Math.floor(targetStep), context.movementCount - 1));
 
   if (resumePosition >= context.movementCount) {
     res

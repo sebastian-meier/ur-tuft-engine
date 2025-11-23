@@ -1571,6 +1571,19 @@ const handleBoundingBoxRoutine = () => {
       return;
     }
 
+    const value = Number.parseInt(manualProgressInput, 10);
+    if (Number.isNaN(value)) {
+      setSeekError('Enter a valid step number.');
+      setSeekState('error');
+      return;
+    }
+
+    if (jobProgress && value > jobProgress.total) {
+      setSeekError(`Step must be between 0 and ${jobProgress.total}.`);
+      setSeekState('error');
+      return;
+    }
+
     setResumeState('running');
     setResumeError(null);
     setResumeDeliveryStatus('skipped');
@@ -1582,7 +1595,7 @@ const handleBoundingBoxRoutine = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ jobId: result.jobId }),
+        body: JSON.stringify({ jobId: result.jobId, targetStep: value }),
       });
 
       const payload = (await response.json()) as {
