@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config';
-import { getJobContext, buildSeekProgram } from '../services/jobStore';
+import { getJobContext } from '../services/jobStore';
 import { overrideProgress } from '../services/progressStore';
 import { sendProgramToRobot } from '../services/robotClient';
 
@@ -25,13 +25,23 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const clampedStep = Math.max(0, Math.min(Math.floor(targetStep), context.movementCount - 1));
-  const program = buildSeekProgram(jobId, context, clampedStep);
-
-  if (!program) {
-    res.status(400).json({ error: 'Unable to generate seek movement for requested step.' });
+  if (!context.programChunks || context.programChunks.length === 0) {
+    res.status(400).json({ error: 'No program chunks available for the requested job.' });
     return;
   }
+
+  const clampedStep = Math.max(0, Math.min(Math.floor(targetStep), context.movementCount - 1));
+  const chunkIndex = context.programChunks.findIndex(
+    (chunk) => clampedStep >= chunk.startIndex && clampedStep < chunk.endIndex,
+  );
+
+  if (chunkIndex === -1) {
+    res.status(400).json({ error: 'Unable to locate program chunk for requested step.' });
+    return;
+  }
+
+  const chunk = context.programChunks[chunkIndex];
+  const resolvedStep = chunk.startIndex;
 
   const robotDelivery = {
     attempted: config.robot.enabled,
@@ -41,7 +51,7 @@ router.post('/', async (req, res) => {
 
   if (config.robot.enabled) {
     try {
-      await sendProgramToRobot(program);
+      await sendProgramToRobot(chunk.program);
       robotDelivery.status = 'delivered';
     } catch (error) {
       robotDelivery.status = 'failed';
@@ -50,9 +60,18 @@ router.post('/', async (req, res) => {
   }
 
   // Override progress to the chosen step so subsequent resumes start there.
-  const progressEntry = overrideProgress(jobId, clampedStep);
+  const progressEntry = overrideProgress(jobId, resolvedStep);
 
-  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({ robotDelivery, program, progress: progressEntry });
+  res
+    .status(robotDelivery.status === 'failed' ? 202 : 200)
+    .json({
+      robotDelivery,
+      program: chunk.program,
+      progress: progressEntry,
+      chunkIndex,
+      targetStep: clampedStep,
+      resolvedStep,
+    });
 });
 
 export default router;
