@@ -6,6 +6,7 @@
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { saveJobContext } from './jobStore';
+import { recordProgress } from './progressStore';
 
 /** Options controlling how the image is transformed into a robot toolpath. */
 export interface URGenerationOptions {
@@ -812,6 +813,8 @@ export async function generateURProgram(
     poseString: settings.poseString,
     programChunks,
   });
+
+  recordProgress(jobId, 0, movementCount);
 
   return {
     jobId,

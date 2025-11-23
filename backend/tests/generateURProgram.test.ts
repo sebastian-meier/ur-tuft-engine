@@ -26,8 +26,11 @@ test('generateURProgram emits expected metadata and program for test fixture', a
   const buffer = await fs.readFile(FIXTURE_PATH);
   const result = await generateURProgram(buffer, 'test-1.jpg');
 
+  const firstProgramChunk = result.programChunks[0]?.program;
+  assert.ok(firstProgramChunk, 'Generated program should include at least one chunk');
+
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
-  await fs.writeFile(OUTPUT_PATH, result.program, 'utf8');
+  await fs.writeFile(OUTPUT_PATH, firstProgramChunk, 'utf8');
 
   assert.strictEqual(result.metadata.estimatedCycleTimeSeconds, EXPECTED_METADATA.estimatedCycleTimeSeconds);
   assert.strictEqual(result.metadata.resolution, EXPECTED_METADATA.resolution);
@@ -46,7 +49,10 @@ test('generateURProgram emits expected metadata and program for test fixture', a
   }
   assert.ok(result.metadata.movementCount > 0, 'Movement count should be tracked for progress reporting');
 
-  assert.ok(result.program.startsWith('def tuft_program():'), 'Program should start with tuft_program definition');
+  assert.ok(
+    firstProgramChunk.startsWith('def tuft_program():'),
+    'Program should start with tuft_program definition',
+  );
 
   const stats = await fs.stat(OUTPUT_PATH);
   assert.ok(stats.size > 0, 'Generated URScript output must not be empty');
