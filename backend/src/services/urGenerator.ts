@@ -42,9 +42,22 @@ export interface URGenerationOptions {
 }
 
 /** Structured metadata returned alongside the generated UR program. */
-export interface URGenerationResult {
-  /** fully formatted URScript program ready for streaming. */
+export interface ProgramChunk {
+  /** Fully formatted URScript snippet ready for streaming. */
   program: string;
+  /** Inclusive starting index within the movement block list. */
+  startIndex: number;
+  /** Exclusive ending index within the movement block list. */
+  endIndex: number;
+  /** Total block count covered by this chunk. */
+  blockCount: number;
+  /** Number of `movel` commands contained in the chunk. */
+  movelCount: number;
+  /** Number of `movel` commands executed before this chunk begins. */
+  progressStart: number;
+}
+
+export interface URGenerationResult {
   /** Unique job identifier for correlating uploads and downstream processing. */
   jobId: string;
   /** Collection of metrics describing the generated job. */
@@ -63,9 +76,13 @@ export interface URGenerationResult {
     activePixels: number;
     /** Bounding box in millimetres covering all black pixels, or `null` when no black pixels were found. */
     boundingBoxMm: BoundingBoxMm | null;
-    /** Total number of planned `movel` commands emitted for the tufting job. */
+    /** Total number of planned movement blocks emitted for the tufting job. */
     movementCount: number;
+    /** Total number of `movel` commands emitted for the tufting job. */
+    movelCommandCount: number;
   };
+  /** Individual program chunks respecting the controller movement limits. */
+  programChunks: ProgramChunk[];
 }
 
 export interface PreflightGenerationResult {
@@ -544,46 +561,62 @@ export async function generateURProgram(
       }
     : null;
 
-  const programLines: string[] = [];
+  const headerLines: string[] = [];
+  const footerLines: string[] = [];
   const movementBlocks: string[][] = [];
-  programLines.push(`def tuft_program():`);
-  programLines.push(settings.coordinateString);
-  programLines.push(settings.poseString);
-  programLines.push(`    textmsg("Starting tufting job ${originalName}")`);
-  programLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
-  programLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
-  programLines.push(`    global travel_speed = ${travelSpeed.toFixed(4)}`);
-  programLines.push(`    global tuft_speed = ${tuftSpeed.toFixed(4)}`);
-  programLines.push(`    global contact_force_threshold = ${contactForceThreshold.toFixed(2)}`);
-  programLines.push(`    global contact_probe_step = ${contactStepMeters.toFixed(4)}`);
+  const blockHasMovel: boolean[] = [];
+  const movelPrefixSums: number[] = [0];
+
+  const appendMovementBlock = (block: string[], containsMovel: boolean) => {
+    movementBlocks.push(block);
+    blockHasMovel.push(containsMovel);
+    const previous = movelPrefixSums[movelPrefixSums.length - 1];
+    movelPrefixSums.push(previous + (containsMovel ? 1 : 0));
+  };
+
+  headerLines.push(`def tuft_program():`);
+  headerLines.push(settings.coordinateString);
+  headerLines.push(settings.poseString);
+  headerLines.push(`    textmsg("Starting tufting job ${originalName}")`);
+  headerLines.push(`    textmsg("Using coordinate frame ${coordinateFrameVariable}")`);
+  headerLines.push(`    set_digital_out(${settings.toolOutput}, False)`);
+  headerLines.push(`    global travel_speed = ${travelSpeed.toFixed(4)}`);
+  headerLines.push(`    global tuft_speed = ${tuftSpeed.toFixed(4)}`);
+  headerLines.push(`    global contact_force_threshold = ${contactForceThreshold.toFixed(2)}`);
+  headerLines.push(`    global contact_probe_step = ${contactStepMeters.toFixed(4)}`);
 
   let progressTotalLineIndex: number | null = null;
+  let progressCurrentLineIndex: number | null = null;
+
   if (progressConfig) {
     const escapedHost = escapeStringForUrScript(progressConfig.host);
     const escapedJobId = escapeStringForUrScript(jobId);
-    programLines.push(`    global progress_host = "${escapedHost}"`);
-    programLines.push(`    global progress_port = ${progressConfig.port}`);
-    programLines.push(`    global progress_total = 0`);
-    progressTotalLineIndex = programLines.length - 1;
-    programLines.push(`    global progress_current = 0`);
-    programLines.push(`    global progress_job_id = "${escapedJobId}"`);
-    programLines.push(`    global open=socket_open(progress_host,progress_port)`);
-    programLines.push(`    while (open ==  False  ):`);
-    programLines.push(`        global open=socket_open(progress_host,progress_port)`);
-    programLines.push(`    end`);
-    programLines.push(`    def report_progress():`);
-    programLines.push(`        progress_current = progress_current + 1`);
-    programLines.push(`        global sendToServer="{jobId:" + progress_job_id + ",current:" + to_str(progress_current) + ",total:" + to_str(progress_total) + "}\n"`);
-    programLines.push(`        socket_send_string(sendToServer)`);
-    programLines.push(`    end`);
+    headerLines.push(`    global progress_host = "${escapedHost}"`);
+    headerLines.push(`    global progress_port = ${progressConfig.port}`);
+    headerLines.push(`    global progress_total = 0`);
+    progressTotalLineIndex = headerLines.length - 1;
+    headerLines.push(`    global progress_current = 0`);
+    progressCurrentLineIndex = headerLines.length - 1;
+    headerLines.push(`    global progress_job_id = "${escapedJobId}"`);
+    headerLines.push(`    global open=socket_open(progress_host,progress_port)`);
+    headerLines.push(`    while (open ==  False  ):`);
+    headerLines.push(`        global open=socket_open(progress_host,progress_port)`);
+    headerLines.push(`    end`);
+    headerLines.push(`    def report_progress():`);
+    headerLines.push(`        progress_current = progress_current + 1`);
+    headerLines.push(
+      `        global sendToServer="{jobId:" + progress_job_id + ",current:" + to_str(progress_current) + ",total:" + to_str(progress_total) + "}\n"`,
+    );
+    headerLines.push(`        socket_send_string(sendToServer)`);
+    headerLines.push(`    end`);
   }
 
+  footerLines.push(`    textmsg("Tufting job finished")`);
+  footerLines.push('end');
+
   if (tuftSegments === 0) {
-    programLines.push(`    textmsg("No dark pixels detected; nothing to tuft.")`);
-    programLines.push(`end`);
     return {
-      program: programLines.join('\n'),
-      jobId: randomUUID(),
+      jobId,
       metadata: {
         estimatedCycleTimeSeconds: 0,
         resolution: `${width}x${height}`,
@@ -593,7 +626,9 @@ export async function generateURProgram(
         activePixels,
         boundingBoxMm,
         movementCount: 0,
+        movelCommandCount: 0,
       },
+      programChunks: [],
     };
   }
 
@@ -608,7 +643,8 @@ export async function generateURProgram(
   let travelDistanceMm = 0;
   let tuftDistanceMm = 0;
   let verticalDistanceMm = 0;
-  let movementCount = 0;
+
+  const segmentRanges: Array<{ startIndex: number; endIndex: number; movelCount: number }> = [];
 
   const emitMove = (
     indent: string,
@@ -621,13 +657,7 @@ export async function generateURProgram(
     const poseExpression = formatPoseForFrame(xMm, yMm, zMeters);
     const poseLine = `${indent}new_pose = ${poseExpression}`;
     const moveLine = `${indent}movel(p[new_pose[0], new_pose[1], new_pose[2], current_pose[3], current_pose[4], current_pose[5]], a=${acceleration.toFixed(1)}, v=${speed.toFixed(4)})`;
-    movementBlocks.push([poseLine, moveLine]);
-    programLines.push(poseLine);
-    programLines.push(moveLine);
-    if (progressConfig) {
-      programLines.push(`${indent}report_progress()`);
-    }
-    movementCount += 1;
+    appendMovementBlock([poseLine, moveLine], true);
   };
 
   // Helper functions keep command emission readable while maintaining motion metrics.
@@ -672,25 +702,18 @@ export async function generateURProgram(
       return;
     }
     const command = `    set_digital_out(${settings.toolOutput}, ${desired ? 'True' : 'False'})`;
-    programLines.push(command);
-    movementBlocks.push([command]);
+    appendMovementBlock([command], false);
     toolActive = desired;
   };
 
   // STEP 3: Emit moves for each tuft segment, toggling the tool output around each stroke.
-  const firstColumn = columnPlans[0];
-  const firstSegment = firstColumn.segments[0];
-  const initialX = settings.workpieceBufferMm + (firstColumn.column + 0.5) * pixelWidthMm;
-  const initialY = settings.workpieceBufferMm + firstSegment.start * pixelHeightMm;
-
-  moveSafe(initialX, initialY);
-
   for (const plan of columnPlans) {
     const columnX = settings.workpieceBufferMm + (plan.column + 0.5) * pixelWidthMm;
 
     for (const segment of plan.segments) {
       const startY = settings.workpieceBufferMm + segment.start * pixelHeightMm;
       const endY = settings.workpieceBufferMm + (segment.end + 1) * pixelHeightMm;
+      const segmentStartIndex = movementBlocks.length;
 
       if (lastSafeX !== columnX || lastSafeY !== startY) {
         moveSafe(columnX, startY);
@@ -701,27 +724,78 @@ export async function generateURProgram(
       moveAtSurface(columnX, endY);
       ensureToolState(false);
       retractToSafe(columnX, endY);
+
+      const segmentEndIndex = movementBlocks.length;
+      const segmentMovelCount =
+        movelPrefixSums[segmentEndIndex] - movelPrefixSums[segmentStartIndex];
+      segmentRanges.push({ startIndex: segmentStartIndex, endIndex: segmentEndIndex, movelCount: segmentMovelCount });
     }
   }
 
-  movementCount = movementBlocks.length;
+  ensureToolState(false);
 
-  if (progressTotalLineIndex !== null) {
-    programLines[progressTotalLineIndex] = `    global progress_total = ${movementCount}`;
+  const movementCount = movementBlocks.length;
+  const movelCommandCount = movelPrefixSums[movelPrefixSums.length - 1];
+
+  const buildHeaderLines = (progressStart: number): string[] => {
+    const lines = headerLines.map((line) => line);
+    if (progressConfig && progressTotalLineIndex !== null && progressCurrentLineIndex !== null) {
+      lines[progressTotalLineIndex] = `    global progress_total = ${movementCount}`;
+      lines[progressCurrentLineIndex] = `    global progress_current = ${progressStart}`;
+    }
+    return lines;
+  };
+
+  const buildProgramForRange = (startIndex: number, endIndex: number): string => {
+    const progressStart = movelPrefixSums[startIndex];
+    const lines = buildHeaderLines(progressStart);
+    for (let i = startIndex; i < endIndex; i += 1) {
+      const block = movementBlocks[i];
+      lines.push(...block);
+      if (progressConfig && blockHasMovel[i]) {
+        const indent = block[block.length - 1].match(/^(\s*)/)?.[1] ?? '    ';
+        lines.push(`${indent}report_progress()`);
+      }
+    }
+    lines.push(...footerLines);
+    return lines.join('\n');
+  };
+
+  const MOVEL_COMMAND_LIMIT = 700;
+  const chunkInfos: Array<{ startIndex: number; endIndex: number }> = [];
+  let chunkStartIndex = 0;
+  let chunkMovelCount = 0;
+
+  for (const segment of segmentRanges) {
+    const segmentMovelCount = segment.movelCount;
+    if (chunkMovelCount > 0 && chunkMovelCount + segmentMovelCount > MOVEL_COMMAND_LIMIT) {
+      chunkInfos.push({ startIndex: chunkStartIndex, endIndex: segment.startIndex });
+      chunkStartIndex = segment.startIndex;
+      chunkMovelCount = 0;
+    }
+    chunkMovelCount += segmentMovelCount;
   }
 
-  ensureToolState(false);
-  programLines.push(`    textmsg("Tufting job finished")`);
-  programLines.push('end');
-  programLines.push('');
-  programLines.push('tuft_program()');
+  if (movementBlocks.length > chunkStartIndex) {
+    chunkInfos.push({ startIndex: chunkStartIndex, endIndex: movementBlocks.length });
+  }
+
+  if (chunkInfos.length === 0 && movementBlocks.length > 0) {
+    chunkInfos.push({ startIndex: 0, endIndex: movementBlocks.length });
+  }
+
+  const programChunks: ProgramChunk[] = chunkInfos.map(({ startIndex, endIndex }) => {
+    const movelCount = movelPrefixSums[endIndex] - movelPrefixSums[startIndex];
+    const blockCount = endIndex - startIndex;
+    const progressStart = movelPrefixSums[startIndex];
+    const program = buildProgramForRange(startIndex, endIndex);
+    return { program, startIndex, endIndex, blockCount, movelCount, progressStart };
+  });
 
   const travelTimeSeconds = travelDistanceMm / settings.travelSpeedMmPerSec;
   const tuftTimeSeconds = tuftDistanceMm / settings.tuftSpeedMmPerSec;
   const verticalTimeSeconds = verticalDistanceMm / settings.travelSpeedMmPerSec;
   const estimatedCycleTimeSeconds = Math.round(travelTimeSeconds + tuftTimeSeconds + verticalTimeSeconds);
-
-  const fullProgram = programLines.join('\n');
 
   saveJobContext(jobId, {
     jobId,
@@ -729,17 +803,17 @@ export async function generateURProgram(
     coordinateFrameVariable,
     progressConfig,
     movementCount,
+    movelCommandCount,
     safeZ,
     travelSpeed,
     tuftSpeed,
     toolOutput: settings.toolOutput,
     coordinateString: settings.coordinateString,
     poseString: settings.poseString,
-    program: fullProgram,
+    programChunks,
   });
 
   return {
-    program: fullProgram,
     jobId,
     metadata: {
       estimatedCycleTimeSeconds,
@@ -750,6 +824,8 @@ export async function generateURProgram(
       activePixels,
       boundingBoxMm,
       movementCount,
+      movelCommandCount,
     },
+    programChunks,
   };
 }

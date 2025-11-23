@@ -304,6 +304,28 @@ button.secondary {
   color: #f1f5f9;
 }
 
+.program-part-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.program-part-selector select {
+  max-width: 320px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #d1d5eb;
+  background: #fff;
+  font: inherit;
+  color: inherit;
+}
+
+.program-part-summary {
+  font-size: 0.9rem;
+  color: #4c4c63;
+}
+
 @media (max-width: 640px) {
   .app {
     padding: 1.5rem;
