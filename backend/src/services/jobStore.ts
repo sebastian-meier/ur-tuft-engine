@@ -117,7 +117,12 @@ export function buildSeekProgram(
   }
   for (const line of block) {
     if (line.indexOf("set_digital_out") == -1) {
-      lines.push(line);
+      lines.push(
+        line.replace(
+          /(pose_trans\([^,]+,\s*p\[\s*-?\d*\.?\d+,\s*-?\d*\.?\d+,\s*)(-?\d*\.?\d+)(\s*,\s*-?\d*\.?\d+,\s*-?\d*\.?\d+,\s*-?\d*\.?\d+\s*\]\))/,
+          `$1${context.safeZ.toFixed(4)}$3`,
+        ),
+      );
     }
   }
   lines.push('    textmsg("Seek movement finished")');
