@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config';
-import { getJobContext } from '../services/jobStore';
+import { buildSeekProgram, getJobContext } from '../services/jobStore';
 import { overrideProgress } from '../services/progressStore';
 import { sendProgramToRobot } from '../services/robotClient';
 
@@ -25,23 +25,13 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  if (!context.programChunks || context.programChunks.length === 0) {
-    res.status(400).json({ error: 'No program chunks available for the requested job.' });
-    return;
-  }
-
   const clampedStep = Math.max(0, Math.min(Math.floor(targetStep), context.movementCount - 1));
-  const chunkIndex = context.programChunks.findIndex(
-    (chunk) => clampedStep >= chunk.startIndex && clampedStep < chunk.endIndex,
-  );
 
-  if (chunkIndex === -1) {
-    res.status(400).json({ error: 'Unable to locate program chunk for requested step.' });
+  const seekProgram = buildSeekProgram(jobId, context, clampedStep);
+  if (!seekProgram) {
+    res.status(400).json({ error: 'Unable to build seek program for requested step.' });
     return;
   }
-
-  const chunk = context.programChunks[chunkIndex];
-  const resolvedStep = chunk.startIndex;
 
   const robotDelivery = {
     attempted: config.robot.enabled,
@@ -51,7 +41,7 @@ router.post('/', async (req, res) => {
 
   if (config.robot.enabled) {
     try {
-      await sendProgramToRobot(chunk.program);
+      await sendProgramToRobot(seekProgram);
       robotDelivery.status = 'delivered';
     } catch (error) {
       robotDelivery.status = 'failed';
@@ -60,17 +50,15 @@ router.post('/', async (req, res) => {
   }
 
   // Override progress to the chosen step so subsequent resumes start there.
-  const progressEntry = overrideProgress(jobId, resolvedStep);
+  const progressEntry = overrideProgress(jobId, clampedStep);
 
   res
     .status(robotDelivery.status === 'failed' ? 202 : 200)
     .json({
       robotDelivery,
-      program: chunk.program,
+      program: seekProgram,
       progress: progressEntry,
-      chunkIndex,
       targetStep: clampedStep,
-      resolvedStep,
     });
 });
 
