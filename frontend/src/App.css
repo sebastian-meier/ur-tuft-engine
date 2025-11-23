@@ -245,19 +245,26 @@ button.secondary {
   gap: 0.5rem;
 }
 
-.manual-progress label {
+.manual-progress-heading {
+  margin: 0;
   font-weight: 600;
   color: #3f3f55;
 }
 
 .manual-progress-display {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
 
-.manual-progress-current {
+.manual-progress-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.manual-progress-field span {
   font-weight: 600;
   color: #1f2351;
 }
