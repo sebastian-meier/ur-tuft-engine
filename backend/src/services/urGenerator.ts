@@ -713,6 +713,8 @@ export async function generateURProgram(
   ensureToolState(false);
   programLines.push(`    textmsg("Tufting job finished")`);
   programLines.push('end');
+  programLines.push('');
+  programLines.push('tuft_program()');
 
   const travelTimeSeconds = travelDistanceMm / settings.travelSpeedMmPerSec;
   const tuftTimeSeconds = tuftDistanceMm / settings.tuftSpeedMmPerSec;
