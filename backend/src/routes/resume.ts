@@ -32,7 +32,8 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), context.movementCount));
+  const maxProgress = context.movelCommandCount ?? context.movementCount;
+  const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), maxProgress));
 
   if (resumePosition >= context.movementCount) {
     res
@@ -41,14 +42,16 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const chunkIndex = context.programChunks.findIndex((chunk) => resumePosition < chunk.endIndex);
+  const chunkIndex = context.programChunks.findIndex(
+    (chunk) => resumePosition < chunk.progressStart + chunk.movelCount,
+  );
   if (chunkIndex === -1) {
     res.status(400).json({ error: 'Unable to locate program chunk for resume position.' });
     return;
   }
 
   const chunk = context.programChunks[chunkIndex];
-  const resolvedResumePosition = chunk.startIndex;
+  const resolvedResumePosition = chunk.progressStart;
   const progressEntry = overrideProgress(jobId, resolvedResumePosition);
 
   const robotDelivery = {
