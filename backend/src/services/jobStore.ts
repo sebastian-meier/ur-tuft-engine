@@ -97,6 +97,10 @@ export function buildSeekProgram(
     return null;
   }
 
+  const chunkIndex = context.programChunks.findIndex(
+    (chunk) => stepIndex < chunk.progressStart + chunk.blockCount,
+  );
+
   const block = context.movementBlocks[stepIndex];
   if (!block || block.length === 0) {
     return null;
