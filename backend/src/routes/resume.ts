@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { config } from '../config';
-import { getProgress, getResumePosition, resumeJob } from '../services/progressStore';
-import { getJobContext, buildResumeProgram } from '../services/jobStore';
+import { getProgress, getResumePosition, resumeJob, overrideProgress } from '../services/progressStore';
+import { getJobContext } from '../services/jobStore';
 import { sendProgramToRobot } from '../services/robotClient';
 
 const router = Router();
@@ -25,13 +25,31 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const resumePosition = getResumePosition(jobId);
-  const program = buildResumeProgram(jobId, context, resumePosition);
-
-  if (!program) {
-    res.status(200).json({ robotDelivery: { attempted: false, status: 'skipped' as const }, resumePosition, program: null });
+  if (!context.programChunks || context.programChunks.length === 0) {
+    res
+      .status(400)
+      .json({ error: 'No program chunks available for the requested job resume.', robotDelivery: { attempted: false, status: 'skipped' as const } });
     return;
   }
+
+  const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), context.movementCount));
+
+  if (resumePosition >= context.movementCount) {
+    res
+      .status(200)
+      .json({ robotDelivery: { attempted: false, status: 'skipped' as const }, resumePosition, program: null, chunkIndex: null });
+    return;
+  }
+
+  const chunkIndex = context.programChunks.findIndex((chunk) => resumePosition < chunk.endIndex);
+  if (chunkIndex === -1) {
+    res.status(400).json({ error: 'Unable to locate program chunk for resume position.' });
+    return;
+  }
+
+  const chunk = context.programChunks[chunkIndex];
+  const resolvedResumePosition = chunk.startIndex;
+  const progressEntry = overrideProgress(jobId, resolvedResumePosition);
 
   const robotDelivery = {
     attempted: config.robot.enabled,
@@ -41,7 +59,7 @@ router.post('/', async (req, res) => {
 
   if (config.robot.enabled) {
     try {
-      await sendProgramToRobot(program);
+      await sendProgramToRobot(chunk.program);
       robotDelivery.status = 'delivered';
       resumeJob(jobId);
     } catch (error) {
@@ -50,7 +68,13 @@ router.post('/', async (req, res) => {
     }
   }
 
-  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({ robotDelivery, resumePosition, program });
+  res.status(robotDelivery.status === 'failed' ? 202 : 200).json({
+    robotDelivery,
+    resumePosition: resolvedResumePosition,
+    program: chunk.program,
+    chunkIndex,
+    progress: progressEntry,
+  });
 });
 
 export default router;
