@@ -32,7 +32,7 @@ router.post('/', async (req, res) => {
     return;
   }
 
-  const maxProgress = context.movelCommandCount ?? context.movementCount;
+  const maxProgress = context.movementCount;
   const resumePosition = Math.max(0, Math.min(getResumePosition(jobId), maxProgress));
 
   if (resumePosition >= context.movementCount) {
@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
   }
 
   const chunkIndex = context.programChunks.findIndex(
-    (chunk) => resumePosition < chunk.progressStart + chunk.movelCount,
+    (chunk) => resumePosition < chunk.progressStart + chunk.blockCount,
   );
   if (chunkIndex === -1) {
     res.status(400).json({ error: 'Unable to locate program chunk for resume position.' });

@@ -748,12 +748,12 @@ export async function generateURProgram(
   };
 
   const buildProgramForRange = (startIndex: number, endIndex: number): string => {
-    const progressStart = movelPrefixSums[startIndex];
+    const progressStart = startIndex;
     const lines = buildHeaderLines(progressStart);
     for (let i = startIndex; i < endIndex; i += 1) {
       const block = movementBlocks[i];
       lines.push(...block);
-      if (progressConfig && blockHasMovel[i]) {
+      if (progressConfig) {
         const indent = block[block.length - 1].match(/^(\s*)/)?.[1] ?? '    ';
         lines.push(`${indent}report_progress()`);
       }
@@ -788,7 +788,7 @@ export async function generateURProgram(
   const programChunks: ProgramChunk[] = chunkInfos.map(({ startIndex, endIndex }) => {
     const movelCount = movelPrefixSums[endIndex] - movelPrefixSums[startIndex];
     const blockCount = endIndex - startIndex;
-    const progressStart = movelPrefixSums[startIndex];
+    const progressStart = startIndex;
     const program = buildProgramForRange(startIndex, endIndex);
     return { program, startIndex, endIndex, blockCount, movelCount, progressStart };
   });
