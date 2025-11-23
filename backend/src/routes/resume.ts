@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { config } from '../config';
 import { getProgress, getResumePosition, resumeJob, overrideProgress } from '../services/progressStore';
-import { getJobContext } from '../services/jobStore';
+import { buildResumeProgram, getJobContext } from '../services/jobStore';
 import { sendProgramToRobot } from '../services/robotClient';
 
 const router = Router();
@@ -51,7 +51,14 @@ router.post('/', async (req, res) => {
   }
 
   const chunk = context.programChunks[chunkIndex];
-  const resolvedResumePosition = chunk.progressStart;
+  const resolvedResumePosition = resumePosition;
+  const resumeProgram = buildResumeProgram(jobId, context, resolvedResumePosition, chunk.endIndex);
+
+  if (!resumeProgram) {
+    res.status(400).json({ error: 'Unable to build resume program for the requested position.' });
+    return;
+  }
+
   const progressEntry = overrideProgress(jobId, resolvedResumePosition);
 
   const robotDelivery = {
@@ -62,7 +69,7 @@ router.post('/', async (req, res) => {
 
   if (config.robot.enabled) {
     try {
-      await sendProgramToRobot(chunk.program);
+      await sendProgramToRobot(resumeProgram);
       robotDelivery.status = 'delivered';
       resumeJob(jobId);
     } catch (error) {
@@ -74,7 +81,7 @@ router.post('/', async (req, res) => {
   res.status(robotDelivery.status === 'failed' ? 202 : 200).json({
     robotDelivery,
     resumePosition: resolvedResumePosition,
-    program: chunk.program,
+    program: resumeProgram,
     chunkIndex,
     progress: progressEntry,
   });

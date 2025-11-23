@@ -39,8 +39,11 @@ export function buildResumeProgram(
   jobId: string,
   context: JobContext,
   startIndex: number,
+  endIndex: number = context.movementBlocks.length,
 ): string | null {
-  if (startIndex >= context.movementBlocks.length) {
+  const clampedEndIndex = Math.min(Math.max(endIndex, 0), context.movementBlocks.length);
+
+  if (startIndex >= clampedEndIndex) {
     return null;
   }
 
@@ -70,7 +73,7 @@ export function buildResumeProgram(
     lines.push(`    end`);
   }
 
-  for (let i = startIndex; i < context.movementBlocks.length; i += 1) {
+  for (let i = startIndex; i < clampedEndIndex; i += 1) {
     const block = context.movementBlocks[i];
     for (const line of block) {
       lines.push(line);
