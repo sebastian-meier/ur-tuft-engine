@@ -3,7 +3,7 @@
  * the backend API, and surfaces the generated robot program and telemetry. Includes a lightweight
  * language switch so the interface can be used in English and German.
  */
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
@@ -75,6 +75,10 @@ const translations: Record<Language, {
     unavailable: string;
   };
   programDetailsHeading: string;
+  manualProgress: {
+    currentLabel: string;
+    targetLabel: string;
+  };
   metadataLabels: {
     jobId: string;
     estimatedCycleTime: string;
@@ -264,6 +268,10 @@ const translations: Record<Language, {
       unavailable: 'No program parts generated for this artwork.',
     },
     programDetailsHeading: 'Program Details',
+    manualProgress: {
+      currentLabel: 'Robot progress index',
+      targetLabel: 'Set progress to index',
+    },
     metadataLabels: {
       jobId: 'Job ID',
       estimatedCycleTime: 'Estimated Cycle Time',
@@ -502,6 +510,10 @@ const translations: Record<Language, {
       unavailable: 'Keine Programmschritte fuer dieses Motiv erstellt.',
     },
     programDetailsHeading: 'Programmdetails',
+    manualProgress: {
+      currentLabel: 'Roboter-Fortschrittsindex',
+      targetLabel: 'Fortschritt auf Index setzen',
+    },
     metadataLabels: {
       jobId: 'Job-ID',
       estimatedCycleTime: 'Geschaetzte Zykluszeit',
@@ -846,18 +858,12 @@ const [seekProgram, setSeekProgram] = useState<string | null>(null);
 const [manualProgressInput, setManualProgressInput] = useState('');
 const [manualProgressApplying, setManualProgressApplying] = useState(false);
 const [manualProgressError, setManualProgressError] = useState<string | null>(null);
-const [isManualEditing, setIsManualEditing] = useState(false);
-const isManualEditingRef = useRef(isManualEditing);
 
   const t = translations[language];
 
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
-
-  useEffect(() => {
-    isManualEditingRef.current = isManualEditing;
-  }, [isManualEditing]);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -904,18 +910,6 @@ const isManualEditingRef = useRef(isManualEditing);
       window.clearInterval(intervalId);
     };
   }, [result?.jobId, isProgressPollingPaused]);
-
-  useEffect(() => {
-    if (!jobProgress) {
-      if (!isManualEditingRef.current) {
-        setManualProgressInput('');
-      }
-      return;
-    }
-    if (!isManualEditingRef.current) {
-      setManualProgressInput(String(jobProgress.current));
-    }
-  }, [jobProgress]);
 
   useEffect(() => {
     if (!result?.programChunks || result.programChunks.length === 0) {
@@ -990,7 +984,6 @@ const isManualEditingRef = useRef(isManualEditing);
     setManualProgressInput('');
     setManualProgressApplying(false);
     setManualProgressError(null);
-    setIsManualEditing(false);
   };
 
   const currentErrorMessage = useMemo(() => {
@@ -1938,9 +1931,6 @@ const handleBoundingBoxRoutine = () => {
       setSeekProgram(payload.program ?? null);
       if (payload.progress) {
         setJobProgress({ current: payload.progress.current, total: payload.progress.total });
-        if (!isManualEditing) {
-          setManualProgressInput(String(payload.progress.current));
-        }
       }
 
       if (!response.ok && response.status !== 202) {
@@ -2182,41 +2172,49 @@ const handleBoundingBoxRoutine = () => {
             )}
           </ul>
           <div className="manual-progress">
-            <label htmlFor="manual-progress-input">
+            <p className="manual-progress-heading">
               {t.metadataLabels.progress} ({jobProgress ? `${jobProgress.total} steps` : '—'})
-            </label>
+            </p>
             <div className="manual-progress-display">
-              <span className="manual-progress-current">
-                {jobProgress ? `${jobProgress.current}/${jobProgress.total}` : '—'}
-              </span>
-              <input
-                id="manual-progress-input"
-                type="number"
-                min={0}
-                max={jobProgress?.total ?? undefined}
-                value={manualProgressInput}
-                onFocus={() => setIsManualEditing(true)}
-                onBlur={() => {
-                  setIsManualEditing(false);
-                  if (!jobProgress) {
-                    return;
-                  }
-                  let value = Number.parseInt(manualProgressInput, 10);
-                  if (Number.isNaN(value)) {
-                    value = jobProgress.current;
-                  }
-                  value = Math.max(0, Math.min(jobProgress.total, value));
-                  setManualProgressInput(String(value));
-                }}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (/^\d*$/.test(value)) {
-                    setManualProgressInput(value);
-                    setManualProgressError(null);
-                  }
-                }}
-                disabled={!result}
-              />
+              <label className="manual-progress-field" htmlFor="manual-progress-current">
+                <span>{t.manualProgress.currentLabel}</span>
+                <input
+                  id="manual-progress-current"
+                  type="number"
+                  value={jobProgress ? jobProgress.current : ''}
+                  readOnly
+                  placeholder="—"
+                />
+              </label>
+              <label className="manual-progress-field" htmlFor="manual-progress-input">
+                <span>{t.manualProgress.targetLabel}</span>
+                <input
+                  id="manual-progress-input"
+                  type="number"
+                  min={0}
+                  max={jobProgress?.total ?? undefined}
+                  value={manualProgressInput}
+                  onBlur={() => {
+                    if (!jobProgress) {
+                      return;
+                    }
+                    let value = Number.parseInt(manualProgressInput, 10);
+                    if (Number.isNaN(value)) {
+                      value = jobProgress.current;
+                    }
+                    value = Math.max(0, Math.min(jobProgress.total, value));
+                    setManualProgressInput(String(value));
+                  }}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (/^\d*$/.test(value)) {
+                      setManualProgressInput(value);
+                      setManualProgressError(null);
+                    }
+                  }}
+                  disabled={!result}
+                />
+              </label>
             </div>
             <div className="manual-progress-actions">
               <button
