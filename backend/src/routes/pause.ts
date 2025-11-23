@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { config } from '../config';
 import { sendProgramToRobot } from '../services/robotClient';
 import { getResumePosition, markJobPaused } from '../services/progressStore';
-import { getStepCoordinates } from '../services/jobStore';
+import { getLastRecordedCoordinates, getStepCoordinates } from '../services/jobStore';
 
 const router = Router();
 
@@ -23,8 +23,11 @@ router.post('/', async (req, res) => {
   const trimmedJobId = jobId.trim();
   markJobPaused(trimmedJobId);
 
-  const resumePosition = Math.max(0, getResumePosition(trimmedJobId) - 1);
-  const coordinates = getStepCoordinates(trimmedJobId, resumePosition);
+  const resumePosition = Math.max(0, getResumePosition(trimmedJobId));
+  const coordinates =
+    getStepCoordinates(trimmedJobId, resumePosition) ??
+    getStepCoordinates(trimmedJobId, Math.max(0, resumePosition - 1)) ??
+    getLastRecordedCoordinates(trimmedJobId);
 
   if (!coordinates) {
     res.status(404).json({ error: 'Unable to determine the last movement position for the job.' });
