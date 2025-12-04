@@ -702,8 +702,9 @@ export async function generateURProgram(
     if (toolActive === desired) {
       return;
     }
+    const sleepLine = `    sleep(0.25)`;
     const command = `    set_digital_out(${settings.toolOutput}, ${desired ? 'True' : 'False'})`;
-    appendMovementBlock([command], false);
+    appendMovementBlock([sleepLine, command], false);
     toolActive = desired;
   };
 
